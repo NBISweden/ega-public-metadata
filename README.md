@@ -12,6 +12,11 @@ You need to have the following installed on your system:
 * [requests](https://requests.readthedocs.io/en/latest/)
 
 
+## Getting started
+
+Once you have installed the required software, just open the Jupyter notebook `ega-public-metadata.ipynb` and execute the code in the cells, from top to bottom. If you are not familiar with Jupyter notebooks, you may want to first have a look at [Jupyter's documentation](https://docs.jupyter.org/en/latest/).
+
+
 ## License
 
 MIT
