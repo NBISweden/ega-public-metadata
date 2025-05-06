@@ -117,6 +117,7 @@ def transform_ega_dataset(ega_dataset, num_datasets, study_title, creator_org=No
         dataset['creator'] = ORGANISATIONS[creator_org]
     else:
         dataset['creator'] = ORGANISATIONS['unspecified']
+    dataset['name'] = ega_dataset['title']
     dataset['publisher'] = ORGANISATIONS['FEGA-SE']
     dt_published =  datetime.fromisoformat(ega_dataset['released_date'])
     dataset['datePublished'] = dt_published.date().isoformat()
