@@ -84,7 +84,7 @@ def main(args=None):
         dataset = transform_ega_dataset(
             ega_dataset, num_datasets=num_datasets, study_title=study_title,
             creator_org=parser.creator, keywords=parser.keywords)
-        filename = f'{parser.study_id}-{ega_dataset["accession_id"]}.json'
+        filename = f'{parser.study_id}-{ega_dataset["accession_id"]}.html'
         filepath = os.path.join(output_dir, filename)
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write('<script type="application/ld+json">\n')
