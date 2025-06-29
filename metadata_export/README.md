@@ -4,6 +4,11 @@ This folder contains scripts that can be used for for exporting metadata for dat
 
 ## researchdata_se.py
 
+### Prerequisites
+
+-   Python 3
+-   The Python library `requests:` <https://requests.readthedocs.io/en/latest/>
+
 ### Usage
 
 ``` text
