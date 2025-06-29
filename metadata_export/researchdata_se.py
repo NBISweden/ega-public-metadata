@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import json
 import os
@@ -9,8 +11,8 @@ import requests
 
 
 """
-CLI tool for exporting metadata to be added
-to https://researchdata.se
+CLI tool for exporting metadata to be harvested
+by https://researchdata.se
 """
 
 
@@ -22,6 +24,8 @@ __version__ = '0.1.0'
 ORGANISATIONS = {
     'unspecified': {'@type': None, '@id': None, 'name': None},
     'FEGA-SE': {'@type': 'Organization', '@id': None, 'name': 'FEGA Sweden'},
+    'LiU': {'@type': 'Organization', '@id': 'https://ror.org/05ynxx418', 'name': 'Linköping University'},
+    'LU': {'@type': 'Organization', '@id': 'https://ror.org/012a77v79', 'name': 'Lund University'},
     'UU': {'@type': 'Organization', '@id': 'https://ror.org/048a87296', 'name': 'Uppsala University'},
     'BTB': {'@type': 'Organization', '@id': None, 'name': 'The Swedish Childhood Tumor Biobank'},
 }
@@ -70,6 +74,7 @@ def main(args=None):
     client = EGAClient()
     ega_study = client.get_entity('studies', accession_id=parser.study_id)
     study_title = ega_study['title']
+    study_url = 'http://identifiers.org/ega.study:' + ega_study['accession_id']
     ega_datasets = client.get_related_entities(
         entity_type='studies', related_entity_type='datasets', accession_id=parser.study_id)
     num_datasets = len(ega_datasets)
@@ -83,13 +88,14 @@ def main(args=None):
     for ega_dataset in ega_datasets:
         dataset = transform_ega_dataset(
             ega_dataset, num_datasets=num_datasets, study_title=study_title,
-            creator_org=parser.creator, keywords=parser.keywords)
-        filename = f'{ega_dataset["accession_id"]}.html'
+            study_url=study_url, creator_org=parser.creator, keywords=parser.keywords)
+        filename = f'{ega_dataset["accession_id"]}.qmd'
         filepath = os.path.join(output_dir, filename)
         with open(filepath, 'w', encoding='utf-8') as f:
-            f.write('<script type="application/ld+json">\n')
-            json.dump(dataset, f, indent=4)  # Pretty print with indent
-            f.write('\n</script>\n')
+            fm = compose_yaml_front_matter(dataset)
+            f.write(fm)
+            md = compose_markdown(dataset)
+            f.write(md)
 
 
 def parse_args(args):
@@ -107,7 +113,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def transform_ega_dataset(ega_dataset, num_datasets, study_title, creator_org=None, keywords=None):
+def transform_ega_dataset(ega_dataset, num_datasets, study_title, study_url, creator_org=None, keywords=None):
     dataset = {
         "@context":"https://schema.org/",
         "@type":"Dataset",
@@ -129,9 +135,54 @@ def transform_ega_dataset(ega_dataset, num_datasets, study_title, creator_org=No
     dataset['licence'] = dataset['identifier']
     dataset['description'] = ' '.join(
         [ega_dataset['description'].strip(),
-         f'This dataset is 1 of {num_datasets} included in the study titled {study_title}.']
+         f'\n\nThis dataset is 1 of {num_datasets} included in the study titled {study_title}, {study_url}.']
     )
     return dataset
+
+
+def compose_yaml_front_matter(dataset):
+    categories_str = '\n'.join([f'  - {kw}' for kw in dataset['keywords']])
+    json_ld_str = json_ld_as_string(dataset)
+    json_ld_indented_str = indent_string(json_ld_str)
+    fm = f"""\
+---
+title: {dataset['name']}
+author: {dataset['creator']['name']}
+date: {dataset['datePublished']}
+description: Dataset
+categories:
+{categories_str}
+format:
+  html:
+    include-in-header:
+      text: |
+{json_ld_indented_str}
+---
+"""
+    return fm
+
+
+def json_ld_as_string(dataset):
+    json_ld_str = (
+        '<script type="application/ld+json">\n'
+        + json.dumps(dataset, indent=4)
+        + '\n</script>\n'
+    )
+    return json_ld_str
+
+def indent_string(s: str, spaces: int = 8) -> str:
+    indentation = ' ' * spaces
+    return '\n'.join(indentation + line for line in s.splitlines())
+
+
+def compose_markdown(dataset):
+    md = f"""\
+{dataset['description']}
+
+**Official landing page:**
+<{dataset['identifier']}>
+"""
+    return md
 
 
 if __name__ == '__main__':  # pragma: no cover
