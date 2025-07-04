@@ -96,6 +96,7 @@ def main(args=None):
             f.write(fm)
             md = compose_markdown(dataset)
             f.write(md)
+            print(compose_url_xml_entry(ega_dataset["accession_id"]))
 
 
 def parse_args(args):
@@ -183,6 +184,15 @@ def compose_markdown(dataset):
 <{dataset['identifier']}>
 """
     return md
+
+
+def compose_url_xml_entry(accession_id):
+    url_xml_entry = f"""\
+  <url>
+    <loc>https://fega.nbis.se/catalogue/datasets/{accession_id}.html</loc>
+  </url>
+  """
+    return url_xml_entry
 
 
 if __name__ == '__main__':  # pragma: no cover
