@@ -9,6 +9,22 @@ This folder contains scripts that can be used for for exporting metadata for dat
 -   Python 3
 -   The Python library `requests:` <https://requests.readthedocs.io/en/latest/>
 
+### Python virtual environment
+
+Create and activate a virtual environment from the repository root:
+
+``` text
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Install `requests` inside the virtual environment:
+
+``` text
+python3 -m pip install --upgrade pip
+python3 -m pip install requests
+```
+
 ### Usage
 
 ``` text
