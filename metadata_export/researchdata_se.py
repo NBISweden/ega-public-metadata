@@ -138,6 +138,7 @@ def export_study_metadata(args):
         )
         filepath = output_dir / f'{ega_dataset["accession_id"]}.qmd'
         write_dataset_file(filepath, dataset)
+        print(f'Wrote {filepath}')
         sitemap_entries.append({
             'loc': build_dataset_page_url(ega_dataset['accession_id']),
             'lastmod': dataset['datePublished'],
