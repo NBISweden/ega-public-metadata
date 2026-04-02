@@ -108,7 +108,7 @@ def export_study_metadata(args):
     client = EGAClient()
     ega_study = client.get_entity('studies', accession_id=args.study_id)
     study_title = ega_study['title']
-    study_url = 'http://identifiers.org/ega.study:' + ega_study['accession_id']
+    study_url = build_study_identifier(ega_study['accession_id'])
     ega_datasets = client.get_related_entities(
         entity_type='studies',
         related_entity_type='datasets',
@@ -137,30 +137,56 @@ def export_study_metadata(args):
 
 
 def transform_ega_dataset(ega_dataset, num_datasets, study_title, study_url, creator_org=None, keywords=None):
-    dataset = {
-        "@context":"https://schema.org/",
-        "@type":"Dataset",
-    }
-    dataset['identifier'] = 'http://identifiers.org/ega.dataset:' + ega_dataset['accession_id']
-    if creator_org is not None:
-        dataset['creator'] = ORGANISATIONS[creator_org]
-    else:
-        dataset['creator'] = ORGANISATIONS['unspecified']
-    dataset['name'] = ega_dataset['title']
-    dataset['publisher'] = ORGANISATIONS['FEGA-SE']
-    dt_published =  datetime.fromisoformat(ega_dataset['released_date'])
-    dataset['datePublished'] = dt_published.date().isoformat()
-    if keywords is not None:
-        dataset['keywords'] = keywords
-    else:
-        dataset['keywords'] = None
-    dataset['inLanguge'] = [{ "@type": "Language", "identifier": "en", "name": "English" }]
-    dataset['licence'] = dataset['identifier']
-    dataset['description'] = ' '.join(
-        [ega_dataset['description'].strip(),
-         f'\n\nThis dataset is 1 of {num_datasets} included in the study titled {study_title}, {study_url}.']
+    description = build_dataset_description(
+        ega_dataset['description'],
+        num_datasets=num_datasets,
+        study_title=study_title,
+        study_url=study_url,
     )
+    dataset = {
+        '@context': 'https://schema.org',
+        '@type': 'Dataset',
+        'identifier': build_dataset_identifier(ega_dataset['accession_id']),
+        'name': ega_dataset['title'].strip(),
+        'publisher': dict(ORGANISATIONS['FEGA-SE']),
+        'datePublished': parse_iso_date(ega_dataset['released_date']),
+        'description': description,
+        'inLanguage': [{'@type': 'Language', 'identifier': 'en', 'name': 'English'}],
+        'isPartOf': {
+            '@id': study_url,
+            'name': study_title,
+        },
+    }
+    if creator_org not in (None, 'unspecified'):
+        dataset['creator'] = dict(ORGANISATIONS[creator_org])
+    if keywords:
+        dataset['keywords'] = keywords
     return dataset
+
+
+def build_dataset_identifier(accession_id):
+    return f'http://identifiers.org/ega.dataset:{accession_id}'
+
+
+def build_study_identifier(accession_id):
+    return f'http://identifiers.org/ega.study:{accession_id}'
+
+
+def parse_iso_date(value):
+    dt_published = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    return dt_published.date().isoformat()
+
+
+def build_dataset_description(description, num_datasets, study_title, study_url):
+    description = description.strip()
+    dataset_label = 'dataset' if num_datasets == 1 else 'datasets'
+    study_summary = (
+        f'This dataset is one of {num_datasets} {dataset_label} included in the '
+        f'study {study_title} ({study_url}).'
+    )
+    if description:
+        return f'{description}\n\n{study_summary}'
+    return study_summary
 
 
 def write_dataset_file(filepath, dataset):
