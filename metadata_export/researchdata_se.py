@@ -18,6 +18,7 @@ __author__ = 'Markus Englund'
 __license__ = 'MIT'
 __version__ = '0.1.0'
 DEFAULT_TIMEOUT = 30
+DEFAULT_PAGE_SIZE = 100
 DEFAULT_SITE_BASE_URL = 'https://fega.nbis.se'
 DEFAULT_SITEMAP_FILENAME = 'sitemap.xml'
 SITEMAP_XMLNS = 'http://www.sitemaps.org/schemas/sitemap/0.9'
@@ -132,6 +133,51 @@ class EGAClient:
         response.raise_for_status()
         return response.json()
 
+    def _extract_collection_items(self, response_json: object) -> list[dict[str, object]]:
+        if isinstance(response_json, list):
+            return cast(list[dict[str, object]], response_json)
+        if isinstance(response_json, dict):
+            for key in ('results', 'items', 'data'):
+                value = response_json.get(key)
+                if isinstance(value, list):
+                    return cast(list[dict[str, object]], value)
+        raise TypeError('Expected a list response or a paginated object containing items')
+
+    def _has_more_pages(
+        self,
+        response_json: object,
+        offset: int,
+        limit: int,
+        items_in_page: int,
+    ) -> bool:
+        if items_in_page == 0:
+            return False
+        if isinstance(response_json, dict):
+            next_page = response_json.get('next')
+            if next_page:
+                return True
+            total_count = response_json.get('total', response_json.get('count'))
+            if isinstance(total_count, int):
+                return offset + items_in_page < total_count
+        return items_in_page == limit
+
+    def _get_paginated_collection(
+        self,
+        endpoint: str,
+        limit: int = DEFAULT_PAGE_SIZE,
+        offset: int = 0,
+    ) -> list[dict[str, object]]:
+        items: list[dict[str, object]] = []
+        current_offset = offset
+
+        while True:
+            response_json = self._get(endpoint, params={'limit': limit, 'offset': current_offset})
+            page_items = self._extract_collection_items(response_json)
+            items.extend(page_items)
+            if not self._has_more_pages(response_json, current_offset, limit, len(page_items)):
+                return items
+            current_offset += len(page_items)
+
     def get_entity(
         self,
         entity_type: str,
@@ -165,7 +211,9 @@ class EGAClient:
             params['limit'] = limit
         if offset is not None:
             params['offset'] = offset
-        return self._get(endpoint, params=params)
+        if params:
+            return self._extract_collection_items(self._get(endpoint, params=params))
+        return self._get_paginated_collection(endpoint)
 
 
 def main(args: list[str] | None = None) -> int:
