@@ -13,7 +13,7 @@ This folder contains scripts that can be used for for exporting metadata for dat
 
 ``` text
 ./researchdata_se.py -h
-usage: researchdata [-h] [-V] [--creator {unspecified,FEGA-SE,LiU,LU,UU,BTB}] [--keywords [KEYWORDS ...]] study_id output_dir
+usage: researchdata [-h] [-V] [--creator {unspecified,FEGA-SE,LiU,LU,UU,BTB}] [--keyword KEYWORDS] [--site-base-url SITE_BASE_URL] [--sitemap-filename SITEMAP_FILENAME] study_id output_dir
 
 A command-line utility for preparing FEGA Sweden metadata for researchdata.se
 
@@ -26,8 +26,11 @@ options:
   -V, --version         show program's version number and exit
   --creator {unspecified,FEGA-SE,LiU,LU,UU,BTB}
                         main organisation that collected the data
-  --keywords [KEYWORDS ...]
-                        keywords describing the dataset
+  --keyword KEYWORDS    keyword describing the dataset; repeat the option for multiple keywords
+  --site-base-url SITE_BASE_URL
+                        base URL for generated dataset landing pages
+  --sitemap-filename SITEMAP_FILENAME
+                        filename for the generated sitemap XML
 ```
 
 The script writes one `.qmd` file per dataset accession to `output_dir` and also generates a complete `sitemap.xml` in the same directory for the exported dataset pages.

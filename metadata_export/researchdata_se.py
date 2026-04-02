@@ -18,8 +18,8 @@ __author__ = 'Markus Englund'
 __license__ = 'MIT'
 __version__ = '0.1.0'
 DEFAULT_TIMEOUT = 30
-SITE_BASE_URL = 'https://fega.nbis.se'
-SITEMAP_FILENAME = 'sitemap.xml'
+DEFAULT_SITE_BASE_URL = 'https://fega.nbis.se'
+DEFAULT_SITEMAP_FILENAME = 'sitemap.xml'
 SITEMAP_XMLNS = 'http://www.sitemaps.org/schemas/sitemap/0.9'
 
 
@@ -52,6 +52,12 @@ class ExportedDataset:
 class SitemapEntry:
     loc: str
     lastmod: str
+
+
+@dataclass(frozen=True)
+class ExportConfig:
+    site_base_url: str
+    sitemap_filename: str
 
 
 class EGAClient:
@@ -135,7 +141,22 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         '-V', '--version', action='version', version='%(prog)s ' + __version__)
     parser.add_argument(
         '--creator', choices=ORGANISATIONS.keys(), help='main organisation that collected the data')
-    parser.add_argument('--keywords', nargs='*', help='keywords describing the dataset')
+    parser.add_argument(
+        '--keyword',
+        action='append',
+        dest='keywords',
+        help='keyword describing the dataset; repeat the option for multiple keywords',
+    )
+    parser.add_argument(
+        '--site-base-url',
+        default=DEFAULT_SITE_BASE_URL,
+        help='base URL for generated dataset landing pages',
+    )
+    parser.add_argument(
+        '--sitemap-filename',
+        default=DEFAULT_SITEMAP_FILENAME,
+        help='filename for the generated sitemap XML',
+    )
     parser.add_argument('study_id', type=str, help='EGA Study accession number')
     parser.add_argument('output_dir', type=str, help='Path to the output directory')
 
@@ -143,6 +164,10 @@ def parse_args(args: list[str]) -> argparse.Namespace:
 
 
 def export_study_metadata(args: argparse.Namespace) -> None:
+    export_config = ExportConfig(
+        site_base_url=args.site_base_url.rstrip('/'),
+        sitemap_filename=args.sitemap_filename,
+    )
     client = EGAClient()
     study_context = fetch_study_context(client, args.study_id)
     output_dir = ensure_output_dir(args.output_dir)
@@ -151,10 +176,11 @@ def export_study_metadata(args: argparse.Namespace) -> None:
         output_dir=output_dir,
         creator_org=args.creator,
         keywords=args.keywords or [],
+        export_config=export_config,
     )
     sitemap_entries = build_sitemap_entries(exported_datasets)
 
-    sitemap_path = output_dir / SITEMAP_FILENAME
+    sitemap_path = output_dir / export_config.sitemap_filename
     write_sitemap_file(sitemap_path, sitemap_entries)
     print(f'Wrote {sitemap_path}')
 
@@ -186,6 +212,7 @@ def export_dataset_files(
     output_dir: Path,
     creator_org: str | None,
     keywords: list[str],
+    export_config: ExportConfig,
 ) -> list[ExportedDataset]:
     num_datasets = len(study_context.datasets)
     exported_datasets = []
@@ -207,7 +234,10 @@ def export_dataset_files(
                 accession_id=ega_dataset['accession_id'],
                 date_published=dataset['datePublished'],
                 file_path=filepath,
-                page_url=build_dataset_page_url(ega_dataset['accession_id']),
+                page_url=build_dataset_page_url(
+                    ega_dataset['accession_id'],
+                    export_config.site_base_url,
+                ),
             )
         )
 
@@ -264,8 +294,8 @@ def build_study_identifier(accession_id: str) -> str:
     return f'http://identifiers.org/ega.study:{accession_id}'
 
 
-def build_dataset_page_url(accession_id: str) -> str:
-    return f'{SITE_BASE_URL}/catalogue/datasets/{accession_id}.html'
+def build_dataset_page_url(accession_id: str, site_base_url: str) -> str:
+    return f'{site_base_url}/catalogue/datasets/{accession_id}.html'
 
 
 def parse_iso_date(value: str) -> str:
