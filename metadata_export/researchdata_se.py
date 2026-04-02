@@ -251,6 +251,7 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         '--keyword',
         action='append',
         dest='keywords',
+        metavar='KEYWORD',
         help='keyword describing the dataset; repeat the option for multiple keywords',
     )
     parser.add_argument(
