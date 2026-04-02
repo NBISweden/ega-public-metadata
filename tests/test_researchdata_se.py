@@ -1,8 +1,11 @@
+import io
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from metadata_export.researchdata_se import (
     EGAClient,
@@ -10,6 +13,8 @@ from metadata_export.researchdata_se import (
     MetadataValidationError,
     build_sitemap_entries,
     compose_yaml_front_matter,
+    export_study_metadata,
+    main,
     parse_args,
     validate_ega_dataset,
     validate_ega_study,
@@ -49,6 +54,41 @@ class FakeSession:
 
     def close(self) -> None:
         self.closed = True
+
+
+class FakeAPIClient:
+    def __init__(self, study_payload, dataset_payload):
+        self.study_payload = study_payload
+        self.dataset_payload = dataset_payload
+        self.calls = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        return None
+
+    def get_entity(self, entity_type, accession_id=None, limit=None, offset=None):
+        self.calls.append(('get_entity', entity_type, accession_id, limit, offset))
+        return self.study_payload
+
+    def get_related_entities(
+        self,
+        entity_type,
+        related_entity_type,
+        accession_id,
+        limit=None,
+        offset=None,
+    ):
+        self.calls.append((
+            'get_related_entities',
+            entity_type,
+            related_entity_type,
+            accession_id,
+            limit,
+            offset,
+        ))
+        return self.dataset_payload
 
 
 class ResearchDataExportTests(unittest.TestCase):
@@ -242,6 +282,92 @@ class ResearchDataExportTests(unittest.TestCase):
                 num_datasets=1,
                 study_title='Study Alpha',
                 study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            )
+
+    def test_export_study_metadata_writes_dataset_files_and_sitemap_with_mocked_client(self) -> None:
+        fake_client = FakeAPIClient(
+            study_payload={
+                'accession_id': 'EGAS50000000906',
+                'title': 'SweGen',
+            },
+            dataset_payload=[
+                {
+                    'accession_id': 'EGAD50000001324',
+                    'title': 'Dataset B',
+                    'released_date': '2024-01-03T10:00:00Z',
+                    'description': 'Second dataset description.',
+                },
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'Dataset A',
+                    'released_date': '2024-01-02T10:00:00Z',
+                    'description': 'First dataset description.',
+                },
+            ],
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            args = parse_args([
+                '--creator', 'UU',
+                '--keyword', 'genomics',
+                '--site-base-url', 'https://example.org',
+                '--sitemap-filename', 'catalogue-sitemap.xml',
+                'EGAS50000000906',
+                tmp_dir,
+            ])
+            stdout_buffer = io.StringIO()
+
+            with patch('metadata_export.researchdata_se.EGAClient', return_value=fake_client):
+                with redirect_stdout(stdout_buffer):
+                    export_study_metadata(args)
+
+            dataset_file = Path(tmp_dir) / 'EGAD50000001323.qmd'
+            sitemap_file = Path(tmp_dir) / 'catalogue-sitemap.xml'
+
+            self.assertTrue(dataset_file.exists())
+            self.assertTrue(sitemap_file.exists())
+            self.assertIn('Dataset A', dataset_file.read_text(encoding='utf-8'))
+            self.assertIn('categories:\n  - "genomics"', dataset_file.read_text(encoding='utf-8'))
+
+            document = ET.parse(sitemap_file)
+            locations = [
+                node.text for node in document.findall('.//sm:loc', SITEMAP_XMLNS)
+            ]
+            self.assertEqual(locations, [
+                'https://example.org/catalogue/datasets/EGAD50000001323.html',
+                'https://example.org/catalogue/datasets/EGAD50000001324.html',
+            ])
+
+            stdout_value = stdout_buffer.getvalue()
+            self.assertIn(f'Wrote {Path(tmp_dir) / "EGAD50000001323.qmd"}', stdout_value)
+            self.assertIn(f'Wrote {Path(tmp_dir) / "catalogue-sitemap.xml"}', stdout_value)
+
+    def test_main_returns_validation_error_with_mocked_client(self) -> None:
+        fake_client = FakeAPIClient(
+            study_payload={
+                'accession_id': 'EGAS50000000906',
+                'title': 'SweGen',
+            },
+            dataset_payload=[
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'Broken dataset',
+                    'released_date': '2024-01-02T10:00:00Z',
+                    'description': '',
+                },
+            ],
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stderr_buffer = io.StringIO()
+            with patch('metadata_export.researchdata_se.EGAClient', return_value=fake_client):
+                with redirect_stderr(stderr_buffer):
+                    exit_code = main(['EGAS50000000906', tmp_dir])
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn(
+                'Metadata validation failed: dataset EGAD50000001323 has empty required field "description"',
+                stderr_buffer.getvalue(),
             )
 
 
