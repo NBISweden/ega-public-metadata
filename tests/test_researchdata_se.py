@@ -7,9 +7,12 @@ from pathlib import Path
 from metadata_export.researchdata_se import (
     EGAClient,
     ExportedDataset,
+    MetadataValidationError,
     build_sitemap_entries,
     compose_yaml_front_matter,
     parse_args,
+    validate_ega_dataset,
+    validate_ega_study,
     transform_ega_dataset,
     write_sitemap_file,
 )
@@ -201,6 +204,45 @@ class ResearchDataExportTests(unittest.TestCase):
         )
         self.assertEqual(len(fake_session.calls), 1)
         self.assertEqual(fake_session.calls[0]['params'], {'limit': 2, 'offset': 4})
+
+    def test_validate_ega_study_reports_missing_title(self) -> None:
+        with self.assertRaisesRegex(
+            MetadataValidationError,
+            'study EGAS50000000906 is missing required string field "title"',
+        ):
+            validate_ega_study({'accession_id': 'EGAS50000000906'}, study_id='EGAS50000000906')
+
+    def test_validate_ega_dataset_reports_empty_description(self) -> None:
+        with self.assertRaisesRegex(
+            MetadataValidationError,
+            'dataset EGAD50000001323 has empty required field "description"',
+        ):
+            validate_ega_dataset(
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'Example dataset',
+                    'released_date': '2024-01-02T03:04:05Z',
+                    'description': '   ',
+                },
+                study_id='EGAS50000000906',
+            )
+
+    def test_transform_ega_dataset_reports_invalid_released_date(self) -> None:
+        with self.assertRaisesRegex(
+            MetadataValidationError,
+            'Invalid released_date value "not-a-date"',
+        ):
+            transform_ega_dataset(
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'Example dataset',
+                    'released_date': 'not-a-date',
+                    'description': 'Description.',
+                },
+                num_datasets=1,
+                study_title='Study Alpha',
+                study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            )
 
 
 if __name__ == '__main__':
