@@ -14,6 +14,7 @@ from metadata_export.researchdata_se import (
     build_sitemap_entries,
     compose_yaml_front_matter,
     export_study_metadata,
+    fetch_study_context,
     main,
     parse_args,
     validate_ega_dataset,
@@ -244,6 +245,46 @@ class ResearchDataExportTests(unittest.TestCase):
         )
         self.assertEqual(len(fake_session.calls), 1)
         self.assertEqual(fake_session.calls[0]['params'], {'limit': 2, 'offset': 4})
+
+    def test_fetch_study_context_returns_validated_study_and_datasets(self) -> None:
+        fake_client = FakeAPIClient(
+            study_payload={
+                'accession_id': 'EGAS50000000906',
+                'title': '  SweGen  ',
+            },
+            dataset_payload=[
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': ' Dataset A ',
+                    'released_date': '2024-01-02T10:00:00Z',
+                    'description': ' First dataset description. ',
+                },
+            ],
+        )
+
+        study_context = fetch_study_context(fake_client, 'EGAS50000000906')
+
+        self.assertEqual(study_context.title, 'SweGen')
+        self.assertEqual(
+            study_context.url,
+            'http://identifiers.org/ega.study:EGAS50000000906',
+        )
+        self.assertEqual(len(study_context.datasets), 1)
+        self.assertEqual(study_context.datasets[0]['title'], 'Dataset A')
+        self.assertEqual(
+            fake_client.calls,
+            [
+                ('get_entity', 'studies', 'EGAS50000000906', None, None),
+                (
+                    'get_related_entities',
+                    'studies',
+                    'datasets',
+                    'EGAS50000000906',
+                    None,
+                    None,
+                ),
+            ],
+        )
 
     def test_validate_ega_study_reports_missing_title(self) -> None:
         with self.assertRaisesRegex(
