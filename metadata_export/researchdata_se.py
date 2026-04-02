@@ -196,34 +196,49 @@ def write_dataset_file(filepath, dataset):
 
 
 def compose_yaml_front_matter(dataset):
-    categories_str = '\n'.join([f'  - {kw}' for kw in dataset['keywords']])
     json_ld_str = json_ld_as_string(dataset)
     json_ld_indented_str = indent_string(json_ld_str)
-    fm = f"""\
----
-title: {dataset['name']}
-author: {dataset['creator']['name']}
-date: {dataset['datePublished']}
-description: Dataset
-categories:
-{categories_str}
-format:
-  html:
-    include-in-header:
-      text: |
-{json_ld_indented_str}
----
-"""
-    return fm
+    lines = [
+        '---',
+        f'title: {yaml_string(dataset["name"])}',
+    ]
+    creator_name = dataset.get('creator', {}).get('name')
+    if creator_name:
+        lines.append(f'author: {yaml_string(creator_name)}')
+    lines.extend([
+        f'date: {yaml_string(dataset["datePublished"])}',
+        'description: Dataset',
+    ])
+    keywords = dataset.get('keywords', [])
+    if keywords:
+        lines.append('categories:')
+        lines.extend(f'  - {yaml_string(keyword)}' for keyword in keywords)
+    else:
+        lines.append('categories: []')
+    lines.extend([
+        'format:',
+        '  html:',
+        '    include-in-header:',
+        '      text: |',
+        json_ld_indented_str,
+        '---',
+        '',
+    ])
+    return '\n'.join(lines)
 
 
 def json_ld_as_string(dataset):
     json_ld_str = (
         '<script type="application/ld+json">\n'
-        + json.dumps(dataset, indent=4)
+        + json.dumps(dataset, indent=2, ensure_ascii=False)
         + '\n</script>\n'
     )
     return json_ld_str
+
+
+def yaml_string(value):
+    return json.dumps(value, ensure_ascii=False)
+
 
 def indent_string(s: str, spaces: int = 8) -> str:
     indentation = ' ' * spaces
