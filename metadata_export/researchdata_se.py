@@ -293,21 +293,14 @@ def export_study_metadata(args: argparse.Namespace) -> None:
 
 
 def fetch_study_context(client: EGAClient, study_id: str) -> StudyContext:
-    ega_study = validate_ega_study(
-        cast(EGAStudy, client.get_entity('studies', accession_id=study_id)),
-        study_id=study_id,
+    raw_study = client.get_entity('studies', accession_id=study_id)
+    raw_datasets = client.get_related_entities(
+        entity_type='studies',
+        related_entity_type='datasets',
+        accession_id=study_id,
     )
-    datasets = [
-        validate_ega_dataset(dataset, study_id=study_id)
-        for dataset in cast(
-            list[EGADataset],
-            client.get_related_entities(
-            entity_type='studies',
-            related_entity_type='datasets',
-            accession_id=study_id,
-            ),
-        )
-    ]
+    ega_study = parse_ega_study_response(raw_study, study_id=study_id)
+    datasets = parse_ega_dataset_collection(raw_datasets, study_id=study_id)
     return StudyContext(
         title=ega_study['title'],
         url=build_study_identifier(ega_study['accession_id']),
@@ -365,6 +358,20 @@ def build_sitemap_entries(exported_datasets: list[ExportedDataset]) -> list[Site
         SitemapEntry(loc=dataset.page_url, lastmod=dataset.date_published)
         for dataset in exported_datasets
     ], key=lambda entry: entry.loc)
+
+
+def parse_ega_study_response(response: dict[str, object], study_id: str) -> EGAStudy:
+    return validate_ega_study(cast(EGAStudy, response), study_id=study_id)
+
+
+def parse_ega_dataset_collection(
+    response: list[dict[str, object]],
+    study_id: str,
+) -> list[EGADataset]:
+    return [
+        validate_ega_dataset(cast(EGADataset, dataset), study_id=study_id)
+        for dataset in response
+    ]
 
 
 def require_non_empty_string(value: object, field_name: str, context: str) -> str:
