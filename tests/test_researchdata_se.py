@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from metadata_export.researchdata_se import (
+    EGAClient,
     ExportedDataset,
     build_sitemap_entries,
     compose_yaml_front_matter,
@@ -15,6 +16,36 @@ from metadata_export.researchdata_se import (
 
 
 SITEMAP_XMLNS = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+
+
+class FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self):
+        return self.payload
+
+
+class FakeSession:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.headers = {}
+        self.calls = []
+        self.closed = False
+
+    def get(self, url, params=None, timeout=None):
+        self.calls.append({
+            'url': url,
+            'params': params,
+            'timeout': timeout,
+        })
+        return FakeResponse(self.responses.pop(0))
+
+    def close(self) -> None:
+        self.closed = True
 
 
 class ResearchDataExportTests(unittest.TestCase):
@@ -125,6 +156,51 @@ class ResearchDataExportTests(unittest.TestCase):
                 'https://example.org/catalogue/datasets/EGAD50000001323.html',
             )
             self.assertEqual(last_modified[0].text, '2024-01-02')
+
+    def test_get_related_entities_fetches_all_pages(self) -> None:
+        fake_session = FakeSession([
+            {
+                'count': 3,
+                'results': [
+                    {'accession_id': 'EGAD1'},
+                    {'accession_id': 'EGAD2'},
+                ],
+            },
+            {
+                'count': 3,
+                'results': [
+                    {'accession_id': 'EGAD3'},
+                ],
+            },
+        ])
+
+        client = EGAClient(session=fake_session)
+        datasets = client.get_related_entities('studies', 'datasets', 'EGAS1')
+
+        self.assertEqual(
+            [dataset['accession_id'] for dataset in datasets],
+            ['EGAD1', 'EGAD2', 'EGAD3'],
+        )
+        self.assertEqual(fake_session.calls[0]['params'], {'limit': 100, 'offset': 0})
+        self.assertEqual(fake_session.calls[1]['params'], {'limit': 100, 'offset': 2})
+
+    def test_get_related_entities_with_limit_returns_single_page(self) -> None:
+        fake_session = FakeSession([
+            [
+                {'accession_id': 'EGAD1'},
+                {'accession_id': 'EGAD2'},
+            ],
+        ])
+
+        client = EGAClient(session=fake_session)
+        datasets = client.get_related_entities('studies', 'datasets', 'EGAS1', limit=2, offset=4)
+
+        self.assertEqual(
+            [dataset['accession_id'] for dataset in datasets],
+            ['EGAD1', 'EGAD2'],
+        )
+        self.assertEqual(len(fake_session.calls), 1)
+        self.assertEqual(fake_session.calls[0]['params'], {'limit': 2, 'offset': 4})
 
 
 if __name__ == '__main__':
