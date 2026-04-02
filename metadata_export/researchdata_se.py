@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TypedDict, cast
 
 import requests
 
@@ -33,11 +33,53 @@ ORGANISATIONS = {
 }
 
 
+Organisation = TypedDict(
+    'Organisation',
+    {
+        '@type': str | None,
+        '@id': str | None,
+        'name': str | None,
+    },
+)
+
+EGAStudy = TypedDict(
+    'EGAStudy',
+    {
+        'accession_id': str,
+        'title': str,
+    },
+)
+
+EGADataset = TypedDict(
+    'EGADataset',
+    {
+        'accession_id': str,
+        'title': str,
+        'released_date': str,
+        'description': str,
+    },
+)
+
+ResearchDataset = TypedDict('ResearchDataset', {
+    '@context': str,
+    '@type': str,
+    'identifier': str,
+    'name': str,
+    'publisher': Organisation,
+    'datePublished': str,
+    'description': str,
+    'inLanguage': list[dict[str, str]],
+    'isPartOf': dict[str, str],
+    'creator': Organisation,
+    'keywords': list[str],
+}, total=False)
+
+
 @dataclass(frozen=True)
 class StudyContext:
     title: str
     url: str
-    datasets: list[dict[str, Any]]
+    datasets: list[EGADataset]
 
 
 @dataclass(frozen=True)
@@ -75,7 +117,16 @@ class EGAClient:
             'User-Agent': f'researchdata-export/{__version__}',
         })
 
-    def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> Any:
+    def __enter__(self) -> 'EGAClient':
+        return self
+
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self.session.close()
+
+    def _get(self, endpoint: str, params: dict[str, int] | None = None) -> object:
         url = f'{self.base_url}/{endpoint}'
         response = self.session.get(url, params=params, timeout=self.timeout)
         response.raise_for_status()
@@ -87,8 +138,8 @@ class EGAClient:
         accession_id: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
-    ) -> Any:
-        params: dict[str, Any] = {}
+    ) -> dict[str, object]:
+        params: dict[str, int] = {}
         endpoint = entity_type
         if accession_id:
             endpoint += f'/{accession_id}'
@@ -105,8 +156,8 @@ class EGAClient:
         accession_id: str,
         limit: int | None = None,
         offset: int | None = None,
-    ) -> list[dict[str, Any]]:
-        params: dict[str, Any] = {}
+    ) -> list[dict[str, object]]:
+        params: dict[str, int] = {}
         endpoint = entity_type
         if accession_id:
             endpoint += f'/{accession_id}/{related_entity_type}'
@@ -168,8 +219,8 @@ def export_study_metadata(args: argparse.Namespace) -> None:
         site_base_url=args.site_base_url.rstrip('/'),
         sitemap_filename=args.sitemap_filename,
     )
-    client = EGAClient()
-    study_context = fetch_study_context(client, args.study_id)
+    with EGAClient() as client:
+        study_context = fetch_study_context(client, args.study_id)
     output_dir = ensure_output_dir(args.output_dir)
     exported_datasets = export_dataset_files(
         study_context=study_context,
@@ -186,11 +237,14 @@ def export_study_metadata(args: argparse.Namespace) -> None:
 
 
 def fetch_study_context(client: EGAClient, study_id: str) -> StudyContext:
-    ega_study = client.get_entity('studies', accession_id=study_id)
-    datasets = client.get_related_entities(
-        entity_type='studies',
-        related_entity_type='datasets',
-        accession_id=study_id,
+    ega_study = cast(EGAStudy, client.get_entity('studies', accession_id=study_id))
+    datasets = cast(
+        list[EGADataset],
+        client.get_related_entities(
+            entity_type='studies',
+            related_entity_type='datasets',
+            accession_id=study_id,
+        ),
     )
     return StudyContext(
         title=ega_study['title'],
@@ -245,27 +299,27 @@ def export_dataset_files(
 
 
 def build_sitemap_entries(exported_datasets: list[ExportedDataset]) -> list[SitemapEntry]:
-    return [
+    return sorted([
         SitemapEntry(loc=dataset.page_url, lastmod=dataset.date_published)
         for dataset in exported_datasets
-    ]
+    ], key=lambda entry: entry.loc)
 
 
 def transform_ega_dataset(
-    ega_dataset: dict[str, Any],
+    ega_dataset: EGADataset,
     num_datasets: int,
     study_title: str,
     study_url: str,
     creator_org: str | None = None,
     keywords: list[str] | None = None,
-) -> dict[str, Any]:
+) -> ResearchDataset:
     description = build_dataset_description(
         ega_dataset['description'],
         num_datasets=num_datasets,
         study_title=study_title,
         study_url=study_url,
     )
-    dataset = {
+    dataset: ResearchDataset = {
         '@context': 'https://schema.org',
         '@type': 'Dataset',
         'identifier': build_dataset_identifier(ega_dataset['accession_id']),
@@ -320,7 +374,7 @@ def build_dataset_description(
     return study_summary
 
 
-def write_dataset_file(filepath: Path, dataset: dict[str, Any]) -> None:
+def write_dataset_file(filepath: Path, dataset: ResearchDataset) -> None:
     with filepath.open('w', encoding='utf-8') as file_handle:
         file_handle.write(compose_yaml_front_matter(dataset))
         file_handle.write(compose_markdown(dataset))
@@ -338,7 +392,7 @@ def write_sitemap_file(filepath: Path, entries: list[SitemapEntry]) -> None:
     tree.write(filepath, encoding='utf-8', xml_declaration=True)
 
 
-def compose_yaml_front_matter(dataset: dict[str, Any]) -> str:
+def compose_yaml_front_matter(dataset: ResearchDataset) -> str:
     json_ld_str = json_ld_as_string(dataset)
     json_ld_indented_str = indent_string(json_ld_str)
     lines = [
@@ -370,7 +424,7 @@ def compose_yaml_front_matter(dataset: dict[str, Any]) -> str:
     return '\n'.join(lines)
 
 
-def json_ld_as_string(dataset: dict[str, Any]) -> str:
+def json_ld_as_string(dataset: ResearchDataset) -> str:
     json_ld_str = (
         '<script type="application/ld+json">\n'
         + json.dumps(dataset, indent=2, ensure_ascii=False)
@@ -379,7 +433,7 @@ def json_ld_as_string(dataset: dict[str, Any]) -> str:
     return json_ld_str
 
 
-def yaml_string(value: Any) -> str:
+def yaml_string(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
@@ -388,7 +442,7 @@ def indent_string(s: str, spaces: int = 8) -> str:
     return '\n'.join(indentation + line for line in s.splitlines())
 
 
-def compose_markdown(dataset: dict[str, Any]) -> str:
+def compose_markdown(dataset: ResearchDataset) -> str:
     md = f"""\
 {dataset['description']}
 
