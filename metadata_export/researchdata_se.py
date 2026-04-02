@@ -2,10 +2,10 @@
 
 import argparse
 import json
-import os
 import sys
 
 from datetime import datetime
+from pathlib import Path
 
 import requests
 
@@ -19,6 +19,7 @@ by https://researchdata.se
 __author__ = 'Markus Englund'
 __license__ = 'MIT'
 __version__ = '0.1.0'
+DEFAULT_TIMEOUT = 30
 
 
 ORGANISATIONS = {
@@ -32,12 +33,18 @@ ORGANISATIONS = {
 
 
 class EGAClient:
-    def __init__(self, base_url='https://metadata.ega-archive.org'):
+    def __init__(self, base_url='https://metadata.ega-archive.org', timeout=DEFAULT_TIMEOUT, session=None):
         self.base_url = base_url
+        self.timeout = timeout
+        self.session = session or requests.Session()
+        self.session.headers.update({
+            'Accept': 'application/json',
+            'User-Agent': f'researchdata-export/{__version__}',
+        })
 
     def _get(self, endpoint, params=None):
         url = f'{self.base_url}/{endpoint}'
-        response = requests.get(url, params=params)
+        response = self.session.get(url, params=params, timeout=self.timeout)
         response.raise_for_status()
         return response.json()
 
@@ -69,34 +76,17 @@ class EGAClient:
 def main(args=None):
     if args is None:
         args = sys.argv[1:]
-    parser = parse_args(args)
+    parsed_args = parse_args(args)
 
-    client = EGAClient()
-    ega_study = client.get_entity('studies', accession_id=parser.study_id)
-    study_title = ega_study['title']
-    study_url = 'http://identifiers.org/ega.study:' + ega_study['accession_id']
-    ega_datasets = client.get_related_entities(
-        entity_type='studies', related_entity_type='datasets', accession_id=parser.study_id)
-    num_datasets = len(ega_datasets)
-    output_dir = parser.output_dir
-
-    # Check if directory exists, if not create it
-    if not os.path.exists(output_dir):
-        print(f"Directory '{output_dir}' does not exist. Creating it...")
-        os.makedirs(output_dir, exist_ok=True)
-
-    for ega_dataset in ega_datasets:
-        dataset = transform_ega_dataset(
-            ega_dataset, num_datasets=num_datasets, study_title=study_title,
-            study_url=study_url, creator_org=parser.creator, keywords=parser.keywords)
-        filename = f'{ega_dataset["accession_id"]}.qmd'
-        filepath = os.path.join(output_dir, filename)
-        with open(filepath, 'w', encoding='utf-8') as f:
-            fm = compose_yaml_front_matter(dataset)
-            f.write(fm)
-            md = compose_markdown(dataset)
-            f.write(md)
-            print(compose_url_xml_entry(ega_dataset["accession_id"]))
+    try:
+        export_study_metadata(parsed_args)
+    except requests.RequestException as exc:
+        print(f'Failed to fetch metadata from the EGA API: {exc}', file=sys.stderr)
+        return 1
+    except (KeyError, TypeError, ValueError) as exc:
+        print(f'Failed to transform metadata: {exc}', file=sys.stderr)
+        return 1
+    return 0
 
 
 def parse_args(args):
@@ -112,6 +102,38 @@ def parse_args(args):
     parser.add_argument('output_dir', type=str, help='Path to the output directory')
 
     return parser.parse_args(args)
+
+
+def export_study_metadata(args):
+    client = EGAClient()
+    ega_study = client.get_entity('studies', accession_id=args.study_id)
+    study_title = ega_study['title']
+    study_url = 'http://identifiers.org/ega.study:' + ega_study['accession_id']
+    ega_datasets = client.get_related_entities(
+        entity_type='studies',
+        related_entity_type='datasets',
+        accession_id=args.study_id,
+    )
+    output_dir = Path(args.output_dir)
+    keywords = args.keywords or []
+
+    if not output_dir.exists():
+        print(f"Directory '{output_dir}' does not exist. Creating it...")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    num_datasets = len(ega_datasets)
+    for ega_dataset in ega_datasets:
+        dataset = transform_ega_dataset(
+            ega_dataset,
+            num_datasets=num_datasets,
+            study_title=study_title,
+            study_url=study_url,
+            creator_org=args.creator,
+            keywords=keywords,
+        )
+        filepath = output_dir / f'{ega_dataset["accession_id"]}.qmd'
+        write_dataset_file(filepath, dataset)
+        print(compose_url_xml_entry(ega_dataset['accession_id']))
 
 
 def transform_ega_dataset(ega_dataset, num_datasets, study_title, study_url, creator_org=None, keywords=None):
@@ -139,6 +161,12 @@ def transform_ega_dataset(ega_dataset, num_datasets, study_title, study_url, cre
          f'\n\nThis dataset is 1 of {num_datasets} included in the study titled {study_title}, {study_url}.']
     )
     return dataset
+
+
+def write_dataset_file(filepath, dataset):
+    with filepath.open('w', encoding='utf-8') as file_handle:
+        file_handle.write(compose_yaml_front_matter(dataset))
+        file_handle.write(compose_markdown(dataset))
 
 
 def compose_yaml_front_matter(dataset):
@@ -196,4 +224,4 @@ def compose_url_xml_entry(accession_id):
 
 
 if __name__ == '__main__':  # pragma: no cover
-    main()
+    raise SystemExit(main())
