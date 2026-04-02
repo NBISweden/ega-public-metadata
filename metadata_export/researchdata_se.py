@@ -14,7 +14,6 @@ from typing import Any
 
 import requests
 
-
 __author__ = 'Markus Englund'
 __license__ = 'MIT'
 __version__ = '0.1.0'
@@ -32,6 +31,13 @@ ORGANISATIONS = {
     'UU': {'@type': 'Organization', '@id': 'https://ror.org/048a87296', 'name': 'Uppsala University'},
     'BTB': {'@type': 'Organization', '@id': None, 'name': 'The Swedish Childhood Tumor Biobank'},
 }
+
+
+@dataclass(frozen=True)
+class StudyContext:
+    title: str
+    url: str
+    datasets: list[dict[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -138,45 +144,81 @@ def parse_args(args: list[str]) -> argparse.Namespace:
 
 def export_study_metadata(args: argparse.Namespace) -> None:
     client = EGAClient()
-    ega_study = client.get_entity('studies', accession_id=args.study_id)
-    study_title = ega_study['title']
-    study_url = build_study_identifier(ega_study['accession_id'])
-    ega_datasets = client.get_related_entities(
+    study_context = fetch_study_context(client, args.study_id)
+    output_dir = ensure_output_dir(args.output_dir)
+    exported_datasets = export_dataset_files(
+        study_context=study_context,
+        output_dir=output_dir,
+        creator_org=args.creator,
+        keywords=args.keywords or [],
+    )
+    sitemap_entries = build_sitemap_entries(exported_datasets)
+
+    sitemap_path = output_dir / SITEMAP_FILENAME
+    write_sitemap_file(sitemap_path, sitemap_entries)
+    print(f'Wrote {sitemap_path}')
+
+
+def fetch_study_context(client: EGAClient, study_id: str) -> StudyContext:
+    ega_study = client.get_entity('studies', accession_id=study_id)
+    datasets = client.get_related_entities(
         entity_type='studies',
         related_entity_type='datasets',
-        accession_id=args.study_id,
+        accession_id=study_id,
     )
-    output_dir = Path(args.output_dir)
-    keywords = args.keywords or []
+    return StudyContext(
+        title=ega_study['title'],
+        url=build_study_identifier(ega_study['accession_id']),
+        datasets=datasets,
+    )
 
-    if not output_dir.exists():
-        print(f"Directory '{output_dir}' does not exist. Creating it...")
-    output_dir.mkdir(parents=True, exist_ok=True)
 
-    num_datasets = len(ega_datasets)
-    sitemap_entries = []
-    for ega_dataset in ega_datasets:
+def ensure_output_dir(output_dir: str) -> Path:
+    path = Path(output_dir)
+    if not path.exists():
+        print(f"Directory '{path}' does not exist. Creating it...")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def export_dataset_files(
+    study_context: StudyContext,
+    output_dir: Path,
+    creator_org: str | None,
+    keywords: list[str],
+) -> list[ExportedDataset]:
+    num_datasets = len(study_context.datasets)
+    exported_datasets = []
+
+    for ega_dataset in study_context.datasets:
         dataset = transform_ega_dataset(
             ega_dataset,
             num_datasets=num_datasets,
-            study_title=study_title,
-            study_url=study_url,
-            creator_org=args.creator,
+            study_title=study_context.title,
+            study_url=study_context.url,
+            creator_org=creator_org,
             keywords=keywords,
         )
         filepath = output_dir / f'{ega_dataset["accession_id"]}.qmd'
         write_dataset_file(filepath, dataset)
         print(f'Wrote {filepath}')
-        sitemap_entries.append(
-            SitemapEntry(
-                loc=build_dataset_page_url(ega_dataset['accession_id']),
-                lastmod=dataset['datePublished'],
+        exported_datasets.append(
+            ExportedDataset(
+                accession_id=ega_dataset['accession_id'],
+                date_published=dataset['datePublished'],
+                file_path=filepath,
+                page_url=build_dataset_page_url(ega_dataset['accession_id']),
             )
         )
 
-    sitemap_path = output_dir / SITEMAP_FILENAME
-    write_sitemap_file(sitemap_path, sitemap_entries)
-    print(f'Wrote {sitemap_path}')
+    return exported_datasets
+
+
+def build_sitemap_entries(exported_datasets: list[ExportedDataset]) -> list[SitemapEntry]:
+    return [
+        SitemapEntry(loc=dataset.page_url, lastmod=dataset.date_published)
+        for dataset in exported_datasets
+    ]
 
 
 def transform_ega_dataset(
