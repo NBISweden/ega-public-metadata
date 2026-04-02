@@ -29,3 +29,5 @@ options:
   --keywords [KEYWORDS ...]
                         keywords describing the dataset
 ```
+
+The script writes one `.qmd` file per dataset accession to `output_dir` and also generates a complete `sitemap.xml` in the same directory for the exported dataset pages.

@@ -3,6 +3,7 @@
 import argparse
 import json
 import sys
+import xml.etree.ElementTree as ET
 
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +21,9 @@ __author__ = 'Markus Englund'
 __license__ = 'MIT'
 __version__ = '0.1.0'
 DEFAULT_TIMEOUT = 30
+SITE_BASE_URL = 'https://fega.nbis.se'
+SITEMAP_FILENAME = 'sitemap.xml'
+SITEMAP_XMLNS = 'http://www.sitemaps.org/schemas/sitemap/0.9'
 
 
 ORGANISATIONS = {
@@ -122,6 +126,7 @@ def export_study_metadata(args):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     num_datasets = len(ega_datasets)
+    sitemap_entries = []
     for ega_dataset in ega_datasets:
         dataset = transform_ega_dataset(
             ega_dataset,
@@ -133,7 +138,14 @@ def export_study_metadata(args):
         )
         filepath = output_dir / f'{ega_dataset["accession_id"]}.qmd'
         write_dataset_file(filepath, dataset)
-        print(compose_url_xml_entry(ega_dataset['accession_id']))
+        sitemap_entries.append({
+            'loc': build_dataset_page_url(ega_dataset['accession_id']),
+            'lastmod': dataset['datePublished'],
+        })
+
+    sitemap_path = output_dir / SITEMAP_FILENAME
+    write_sitemap_file(sitemap_path, sitemap_entries)
+    print(f'Wrote {sitemap_path}')
 
 
 def transform_ega_dataset(ega_dataset, num_datasets, study_title, study_url, creator_org=None, keywords=None):
@@ -172,6 +184,10 @@ def build_study_identifier(accession_id):
     return f'http://identifiers.org/ega.study:{accession_id}'
 
 
+def build_dataset_page_url(accession_id):
+    return f'{SITE_BASE_URL}/catalogue/datasets/{accession_id}.html'
+
+
 def parse_iso_date(value):
     dt_published = datetime.fromisoformat(value.replace('Z', '+00:00'))
     return dt_published.date().isoformat()
@@ -193,6 +209,18 @@ def write_dataset_file(filepath, dataset):
     with filepath.open('w', encoding='utf-8') as file_handle:
         file_handle.write(compose_yaml_front_matter(dataset))
         file_handle.write(compose_markdown(dataset))
+
+
+def write_sitemap_file(filepath, entries):
+    urlset = ET.Element('urlset', xmlns=SITEMAP_XMLNS)
+    for entry in entries:
+        url_element = ET.SubElement(urlset, 'url')
+        ET.SubElement(url_element, 'loc').text = entry['loc']
+        ET.SubElement(url_element, 'lastmod').text = entry['lastmod']
+
+    ET.indent(urlset, space='  ')
+    tree = ET.ElementTree(urlset)
+    tree.write(filepath, encoding='utf-8', xml_declaration=True)
 
 
 def compose_yaml_front_matter(dataset):
@@ -253,15 +281,6 @@ def compose_markdown(dataset):
 <{dataset['identifier']}>
 """
     return md
-
-
-def compose_url_xml_entry(accession_id):
-    url_xml_entry = f"""\
-  <url>
-    <loc>https://fega.nbis.se/catalogue/datasets/{accession_id}.html</loc>
-  </url>
-  """
-    return url_xml_entry
 
 
 if __name__ == '__main__':  # pragma: no cover
