@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 
+"""CLI tool for exporting metadata to be harvested by https://researchdata.se."""
+
 import argparse
 import json
 import sys
 import xml.etree.ElementTree as ET
 
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import requests
-
-
-"""
-CLI tool for exporting metadata to be harvested
-by https://researchdata.se
-"""
 
 
 __author__ = 'Markus Englund'
@@ -36,8 +34,27 @@ ORGANISATIONS = {
 }
 
 
+@dataclass(frozen=True)
+class ExportedDataset:
+    accession_id: str
+    date_published: str
+    file_path: Path
+    page_url: str
+
+
+@dataclass(frozen=True)
+class SitemapEntry:
+    loc: str
+    lastmod: str
+
+
 class EGAClient:
-    def __init__(self, base_url='https://metadata.ega-archive.org', timeout=DEFAULT_TIMEOUT, session=None):
+    def __init__(
+        self,
+        base_url: str = 'https://metadata.ega-archive.org',
+        timeout: int = DEFAULT_TIMEOUT,
+        session: requests.Session | None = None,
+    ) -> None:
         self.base_url = base_url
         self.timeout = timeout
         self.session = session or requests.Session()
@@ -46,15 +63,20 @@ class EGAClient:
             'User-Agent': f'researchdata-export/{__version__}',
         })
 
-    def _get(self, endpoint, params=None):
+    def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> Any:
         url = f'{self.base_url}/{endpoint}'
         response = self.session.get(url, params=params, timeout=self.timeout)
         response.raise_for_status()
         return response.json()
 
-    def get_entity(self, entity_type, accession_id=None, limit=None, 
-                   offset=None):
-        params = {}
+    def get_entity(
+        self,
+        entity_type: str,
+        accession_id: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> Any:
+        params: dict[str, Any] = {}
         endpoint = entity_type
         if accession_id:
             endpoint += f'/{accession_id}'
@@ -64,9 +86,15 @@ class EGAClient:
             params['offset'] = offset
         return self._get(endpoint, params=params)
 
-    def get_related_entities(self, entity_type, related_entity_type, 
-                             accession_id, limit=None, offset=None):
-        params = {}
+    def get_related_entities(
+        self,
+        entity_type: str,
+        related_entity_type: str,
+        accession_id: str,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {}
         endpoint = entity_type
         if accession_id:
             endpoint += f'/{accession_id}/{related_entity_type}'
@@ -77,7 +105,7 @@ class EGAClient:
         return self._get(endpoint, params=params)
 
 
-def main(args=None):
+def main(args: list[str] | None = None) -> int:
     if args is None:
         args = sys.argv[1:]
     parsed_args = parse_args(args)
@@ -93,7 +121,7 @@ def main(args=None):
     return 0
 
 
-def parse_args(args):
+def parse_args(args: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog='researchdata', description=(
             'A command-line utility for preparing FEGA Sweden metadata for researchdata.se'))
@@ -108,7 +136,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def export_study_metadata(args):
+def export_study_metadata(args: argparse.Namespace) -> None:
     client = EGAClient()
     ega_study = client.get_entity('studies', accession_id=args.study_id)
     study_title = ega_study['title']
@@ -139,17 +167,26 @@ def export_study_metadata(args):
         filepath = output_dir / f'{ega_dataset["accession_id"]}.qmd'
         write_dataset_file(filepath, dataset)
         print(f'Wrote {filepath}')
-        sitemap_entries.append({
-            'loc': build_dataset_page_url(ega_dataset['accession_id']),
-            'lastmod': dataset['datePublished'],
-        })
+        sitemap_entries.append(
+            SitemapEntry(
+                loc=build_dataset_page_url(ega_dataset['accession_id']),
+                lastmod=dataset['datePublished'],
+            )
+        )
 
     sitemap_path = output_dir / SITEMAP_FILENAME
     write_sitemap_file(sitemap_path, sitemap_entries)
     print(f'Wrote {sitemap_path}')
 
 
-def transform_ega_dataset(ega_dataset, num_datasets, study_title, study_url, creator_org=None, keywords=None):
+def transform_ega_dataset(
+    ega_dataset: dict[str, Any],
+    num_datasets: int,
+    study_title: str,
+    study_url: str,
+    creator_org: str | None = None,
+    keywords: list[str] | None = None,
+) -> dict[str, Any]:
     description = build_dataset_description(
         ega_dataset['description'],
         num_datasets=num_datasets,
@@ -177,24 +214,29 @@ def transform_ega_dataset(ega_dataset, num_datasets, study_title, study_url, cre
     return dataset
 
 
-def build_dataset_identifier(accession_id):
+def build_dataset_identifier(accession_id: str) -> str:
     return f'http://identifiers.org/ega.dataset:{accession_id}'
 
 
-def build_study_identifier(accession_id):
+def build_study_identifier(accession_id: str) -> str:
     return f'http://identifiers.org/ega.study:{accession_id}'
 
 
-def build_dataset_page_url(accession_id):
+def build_dataset_page_url(accession_id: str) -> str:
     return f'{SITE_BASE_URL}/catalogue/datasets/{accession_id}.html'
 
 
-def parse_iso_date(value):
+def parse_iso_date(value: str) -> str:
     dt_published = datetime.fromisoformat(value.replace('Z', '+00:00'))
     return dt_published.date().isoformat()
 
 
-def build_dataset_description(description, num_datasets, study_title, study_url):
+def build_dataset_description(
+    description: str,
+    num_datasets: int,
+    study_title: str,
+    study_url: str,
+) -> str:
     description = description.strip()
     dataset_label = 'dataset' if num_datasets == 1 else 'datasets'
     study_summary = (
@@ -206,25 +248,25 @@ def build_dataset_description(description, num_datasets, study_title, study_url)
     return study_summary
 
 
-def write_dataset_file(filepath, dataset):
+def write_dataset_file(filepath: Path, dataset: dict[str, Any]) -> None:
     with filepath.open('w', encoding='utf-8') as file_handle:
         file_handle.write(compose_yaml_front_matter(dataset))
         file_handle.write(compose_markdown(dataset))
 
 
-def write_sitemap_file(filepath, entries):
+def write_sitemap_file(filepath: Path, entries: list[SitemapEntry]) -> None:
     urlset = ET.Element('urlset', xmlns=SITEMAP_XMLNS)
     for entry in entries:
         url_element = ET.SubElement(urlset, 'url')
-        ET.SubElement(url_element, 'loc').text = entry['loc']
-        ET.SubElement(url_element, 'lastmod').text = entry['lastmod']
+        ET.SubElement(url_element, 'loc').text = entry.loc
+        ET.SubElement(url_element, 'lastmod').text = entry.lastmod
 
     ET.indent(urlset, space='  ')
     tree = ET.ElementTree(urlset)
     tree.write(filepath, encoding='utf-8', xml_declaration=True)
 
 
-def compose_yaml_front_matter(dataset):
+def compose_yaml_front_matter(dataset: dict[str, Any]) -> str:
     json_ld_str = json_ld_as_string(dataset)
     json_ld_indented_str = indent_string(json_ld_str)
     lines = [
@@ -256,7 +298,7 @@ def compose_yaml_front_matter(dataset):
     return '\n'.join(lines)
 
 
-def json_ld_as_string(dataset):
+def json_ld_as_string(dataset: dict[str, Any]) -> str:
     json_ld_str = (
         '<script type="application/ld+json">\n'
         + json.dumps(dataset, indent=2, ensure_ascii=False)
@@ -265,7 +307,7 @@ def json_ld_as_string(dataset):
     return json_ld_str
 
 
-def yaml_string(value):
+def yaml_string(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
@@ -274,7 +316,7 @@ def indent_string(s: str, spaces: int = 8) -> str:
     return '\n'.join(indentation + line for line in s.splitlines())
 
 
-def compose_markdown(dataset):
+def compose_markdown(dataset: dict[str, Any]) -> str:
     md = f"""\
 {dataset['description']}
 
