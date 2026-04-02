@@ -103,6 +103,10 @@ class ExportConfig:
     sitemap_filename: str
 
 
+class MetadataValidationError(ValueError):
+    """Raised when required metadata is missing or malformed."""
+
+
 class EGAClient:
     def __init__(
         self,
@@ -226,6 +230,9 @@ def main(args: list[str] | None = None) -> int:
     except requests.RequestException as exc:
         print(f'Failed to fetch metadata from the EGA API: {exc}', file=sys.stderr)
         return 1
+    except MetadataValidationError as exc:
+        print(f'Metadata validation failed: {exc}', file=sys.stderr)
+        return 1
     except (KeyError, TypeError, ValueError) as exc:
         print(f'Failed to transform metadata: {exc}', file=sys.stderr)
         return 1
@@ -285,15 +292,21 @@ def export_study_metadata(args: argparse.Namespace) -> None:
 
 
 def fetch_study_context(client: EGAClient, study_id: str) -> StudyContext:
-    ega_study = cast(EGAStudy, client.get_entity('studies', accession_id=study_id))
-    datasets = cast(
-        list[EGADataset],
-        client.get_related_entities(
+    ega_study = validate_ega_study(
+        cast(EGAStudy, client.get_entity('studies', accession_id=study_id)),
+        study_id=study_id,
+    )
+    datasets = [
+        validate_ega_dataset(dataset, study_id=study_id)
+        for dataset in cast(
+            list[EGADataset],
+            client.get_related_entities(
             entity_type='studies',
             related_entity_type='datasets',
             accession_id=study_id,
-        ),
-    )
+            ),
+        )
+    ]
     return StudyContext(
         title=ega_study['title'],
         url=build_study_identifier(ega_study['accession_id']),
@@ -353,6 +366,61 @@ def build_sitemap_entries(exported_datasets: list[ExportedDataset]) -> list[Site
     ], key=lambda entry: entry.loc)
 
 
+def require_non_empty_string(value: object, field_name: str, context: str) -> str:
+    if not isinstance(value, str):
+        raise MetadataValidationError(
+            f'{context} is missing required string field "{field_name}"'
+        )
+    normalized_value = value.strip()
+    if not normalized_value:
+        raise MetadataValidationError(
+            f'{context} has empty required field "{field_name}"'
+        )
+    return normalized_value
+
+
+def validate_ega_study(ega_study: EGAStudy, study_id: str) -> EGAStudy:
+    return EGAStudy(
+        accession_id=require_non_empty_string(
+            ega_study.get('accession_id'),
+            'accession_id',
+            f'study {study_id}',
+        ),
+        title=require_non_empty_string(
+            ega_study.get('title'),
+            'title',
+            f'study {study_id}',
+        ),
+    )
+
+
+def validate_ega_dataset(ega_dataset: EGADataset, study_id: str) -> EGADataset:
+    dataset_accession = require_non_empty_string(
+        ega_dataset.get('accession_id'),
+        'accession_id',
+        f'dataset in study {study_id}',
+    )
+    dataset_context = f'dataset {dataset_accession}'
+    return EGADataset(
+        accession_id=dataset_accession,
+        title=require_non_empty_string(
+            ega_dataset.get('title'),
+            'title',
+            dataset_context,
+        ),
+        released_date=require_non_empty_string(
+            ega_dataset.get('released_date'),
+            'released_date',
+            dataset_context,
+        ),
+        description=require_non_empty_string(
+            ega_dataset.get('description'),
+            'description',
+            dataset_context,
+        ),
+    )
+
+
 def transform_ega_dataset(
     ega_dataset: EGADataset,
     num_datasets: int,
@@ -401,7 +469,12 @@ def build_dataset_page_url(accession_id: str, site_base_url: str) -> str:
 
 
 def parse_iso_date(value: str) -> str:
-    dt_published = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    try:
+        dt_published = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError as exc:
+        raise MetadataValidationError(
+            f'Invalid released_date value "{value}"'
+        ) from exc
     return dt_published.date().isoformat()
 
 
