@@ -285,12 +285,18 @@ class ResearchDataExportTests(unittest.TestCase):
         markdown = compose_markdown(dataset)
 
         self.assertIn(
-            'study "SweGen" ([http://identifiers.org/ega.study:EGAS50000000906](http://identifiers.org/ega.study:EGAS50000000906)).',
+            'study "SweGen"\n'
+            '([http://identifiers.org/ega.study:EGAS50000000906](http://identifiers.org/ega.study:EGAS50000000906)).',
             markdown,
         )
         self.assertIn(
             'study "SweGen" (http://identifiers.org/ega.study:EGAS50000000906).',
             dataset['description'],
+        )
+        self.assertIn(
+            'This dataset is one of 2 datasets included in the study "SweGen"\n'
+            '([http://identifiers.org/ega.study:EGAS50000000906](http://identifiers.org/ega.study:EGAS50000000906)).',
+            markdown,
         )
 
     def test_transform_ega_dataset_allows_publisher_without_creator_in_isolation(self) -> None:

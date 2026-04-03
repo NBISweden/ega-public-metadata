@@ -65,7 +65,8 @@ format:
 ---
 First dataset description.
 
-This dataset is one of 2 datasets included in the study "SweGen" ([http://identifiers.org/ega.study:EGAS50000000906](http://identifiers.org/ega.study:EGAS50000000906)).
+This dataset is one of 2 datasets included in the study "SweGen"
+([http://identifiers.org/ega.study:EGAS50000000906](http://identifiers.org/ega.study:EGAS50000000906)).
 
 **Official landing page:**
 <http://identifiers.org/ega.dataset:EGAD50000001323>

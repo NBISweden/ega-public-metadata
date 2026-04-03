@@ -6,6 +6,7 @@ import argparse
 import io
 import json
 import sys
+import textwrap
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -1000,6 +1001,25 @@ def indent_string(s: str, spaces: int = 8) -> str:
     return '\n'.join(indentation + line for line in s.splitlines())
 
 
+def wrap_markdown_text(text: str, width: int = 88) -> str:
+    wrapped_lines: list[str] = []
+    for line in text.splitlines():
+        if not line.strip():
+            wrapped_lines.append('')
+            continue
+        stripped_line = line.lstrip()
+        if stripped_line.startswith(('#', '>', '-', '*', '<', '|')):
+            wrapped_lines.append(line)
+            continue
+        wrapped_lines.append(textwrap.fill(
+            line,
+            width=width,
+            break_long_words=False,
+            break_on_hyphens=False,
+        ))
+    return '\n'.join(wrapped_lines)
+
+
 def compose_markdown(dataset: ResearchDataset) -> str:
     description = dataset['description']
     study_url = dataset.get('isPartOf', {}).get('@id')
@@ -1008,6 +1028,7 @@ def compose_markdown(dataset: ResearchDataset) -> str:
             f'({study_url})',
             f'([{study_url}]({study_url}))',
         )
+    description = wrap_markdown_text(description)
     return f"""\
 {description}
 
