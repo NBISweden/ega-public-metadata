@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 import json
 import re
 
@@ -47,6 +48,7 @@ def build_export_request_signature(
     publisher_org: str | None,
     site_base_url: str,
     sitemap_filename: str,
+    sitemap_lastmod: str | None,
     global_keywords: list[str],
     dataset_keywords_by_accession: dict[str, list[str]],
     selected_accessions: set[str],
@@ -58,6 +60,7 @@ def build_export_request_signature(
             'publisher_org': publisher_org,
             'site_base_url': site_base_url,
             'sitemap_filename': sitemap_filename,
+            'sitemap_lastmod': sitemap_lastmod,
             'global_keywords': global_keywords,
             'dataset_keywords_by_accession': dataset_keywords_by_accession,
             'selected_accessions': sorted(selected_accessions),
@@ -77,8 +80,10 @@ def initialize_form_state_defaults(session_state: SessionStateMapping) -> None:
         session_state['site_base_url'] = DEFAULT_SITE_BASE_URL
     if 'sitemap_filename' not in session_state:
         session_state['sitemap_filename'] = DEFAULT_SITEMAP_FILENAME
-    if 'output_dir' not in session_state:
-        session_state['output_dir'] = 'tmp/streamlit-export'
+    if 'use_sitemap_lastmod' not in session_state:
+        session_state['use_sitemap_lastmod'] = False
+    if 'sitemap_lastmod_date' not in session_state:
+        session_state['sitemap_lastmod_date'] = date.today()
 
 
 def parse_keywords(raw_value: str) -> list[str]:
@@ -115,6 +120,12 @@ def restore_project_to_session_state(
     session_state['global_keywords_raw'] = ', '.join(project.get('global_keywords', []))
     session_state['site_base_url'] = project['site_base_url']
     session_state['sitemap_filename'] = project['sitemap_filename']
+    sitemap_lastmod = project.get('sitemap_lastmod')
+    session_state['use_sitemap_lastmod'] = sitemap_lastmod is not None
+    session_state['sitemap_lastmod_date'] = (
+        date.fromisoformat(sitemap_lastmod)
+        if sitemap_lastmod is not None else date.today()
+    )
     clear_generated_export_state(session_state)
     initialize_dataset_state(study_context, session_state)
     dataset_state = {
@@ -159,6 +170,15 @@ def build_preview_dataset_from_project(
 
 def collect_global_keywords(session_state: SessionStateMapping) -> list[str]:
     return parse_keywords(str(session_state.get('global_keywords_raw', '')))
+
+
+def collect_sitemap_lastmod(session_state: SessionStateMapping) -> str | None:
+    if not bool(session_state.get('use_sitemap_lastmod', False)):
+        return None
+    lastmod_date = session_state.get('sitemap_lastmod_date')
+    if isinstance(lastmod_date, date):
+        return lastmod_date.isoformat()
+    return None
 
 
 def collect_selected_accessions(

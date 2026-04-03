@@ -9,6 +9,7 @@ The app is intended to replace the existing CLI export workflow over time, but t
 -   Fetch a study and its datasets from the EGA public metadata API
 -   Set one or more creators at study level
 -   Set a required publisher at study level
+-   Optionally choose a sitemap `lastmod` date for the whole export
 -   Add global keywords for all datasets plus additional keywords per dataset
 -   Include or exclude datasets directly alongside each dataset expander
 -   Save a reproducible project snapshot as JSON

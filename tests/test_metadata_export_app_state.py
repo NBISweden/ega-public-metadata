@@ -1,5 +1,7 @@
 import unittest
 
+from datetime import date
+
 from metadata_export.researchdata_se import ExportConfig, StudyContext, build_export_project
 from metadata_export_app.state import (
     build_export_archive_filename,
@@ -10,6 +12,7 @@ from metadata_export_app.state import (
     collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
     collect_global_keywords,
+    collect_sitemap_lastmod,
     collect_selected_accessions,
     find_selected_accessions_missing_keywords,
     get_export_validation_message,
@@ -70,6 +73,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             publisher_org='LU',
             site_base_url='https://example.org',
             sitemap_filename='sitemap.xml',
+            sitemap_lastmod=None,
             global_keywords=['genomics'],
             dataset_keywords_by_accession={'EGAD50000001323': ['reference cohort']},
             selected_accessions={'EGAD50000001323'},
@@ -80,6 +84,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             publisher_org='LU',
             site_base_url='https://example.org',
             sitemap_filename='sitemap.xml',
+            sitemap_lastmod='2026-04-03',
             global_keywords=['genomics', 'whole genome'],
             dataset_keywords_by_accession={'EGAD50000001323': ['reference cohort']},
             selected_accessions={'EGAD50000001323'},
@@ -117,13 +122,16 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(session_state['publisher_org'], 'LU')
         self.assertEqual(session_state['site_base_url'], 'https://example.org')
         self.assertEqual(session_state['sitemap_filename'], 'sitemap.xml')
-        self.assertEqual(session_state['output_dir'], 'tmp/streamlit-export')
+        self.assertFalse(session_state['use_sitemap_lastmod'])
+        self.assertIsInstance(session_state['sitemap_lastmod_date'], date)
 
         fresh_session_state = {}
         initialize_form_state_defaults(fresh_session_state)
         self.assertEqual(fresh_session_state['creator_orgs'], [])
         self.assertEqual(fresh_session_state['global_keywords_raw'], '')
         self.assertIsNone(fresh_session_state['publisher_org'])
+        self.assertFalse(fresh_session_state['use_sitemap_lastmod'])
+        self.assertIsInstance(fresh_session_state['sitemap_lastmod_date'], date)
 
     def test_collect_global_keywords_parses_shared_keywords(self) -> None:
         session_state = {'global_keywords_raw': 'genomics\nwhole genome, population genetics'}
@@ -131,6 +139,15 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(
             collect_global_keywords(session_state),
             ['genomics', 'whole genome', 'population genetics'],
+        )
+
+    def test_collect_sitemap_lastmod_returns_iso_date_only_when_enabled(self) -> None:
+        self.assertIsNone(collect_sitemap_lastmod({}))
+        self.assertIsNone(collect_sitemap_lastmod({'use_sitemap_lastmod': False}))
+        self.assertIsNone(collect_sitemap_lastmod({'use_sitemap_lastmod': True, 'sitemap_lastmod_date': None}))
+        self.assertEqual(
+            collect_sitemap_lastmod({'use_sitemap_lastmod': True, 'sitemap_lastmod_date': date(2026, 4, 3)}),
+            '2026-04-03',
         )
 
     def test_initialize_dataset_state_sets_defaults_without_overwriting_existing_values(self) -> None:
@@ -155,6 +172,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             export_config=ExportConfig(
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
+                sitemap_lastmod='2026-04-03',
             ),
             global_keywords=['genomics'],
             dataset_keywords_by_accession={
@@ -178,6 +196,8 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(session_state['global_keywords_raw'], 'genomics')
         self.assertEqual(session_state['site_base_url'], 'https://example.org')
         self.assertEqual(session_state['sitemap_filename'], 'catalogue-sitemap.xml')
+        self.assertTrue(session_state['use_sitemap_lastmod'])
+        self.assertEqual(str(session_state['sitemap_lastmod_date']), '2026-04-03')
         self.assertEqual(session_state['include_EGAD50000001323'], False)
         self.assertEqual(session_state['include_EGAD50000001324'], True)
         self.assertEqual(session_state['keywords_EGAD50000001323'], 'population genetics')
@@ -199,6 +219,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             export_config=ExportConfig(
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
+                sitemap_lastmod='2026-04-03',
             ),
             global_keywords=['genomics'],
             dataset_keywords_by_accession={

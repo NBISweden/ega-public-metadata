@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 import json
 import sys
 
@@ -43,6 +44,7 @@ from metadata_export_app.state import (
     collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
     collect_global_keywords,
+    collect_sitemap_lastmod,
     collect_selected_accessions,
     find_selected_accessions_missing_keywords,
     get_export_validation_message,
@@ -155,6 +157,21 @@ with settings_col:
         'Sitemap filename',
         key='sitemap_filename',
     )
+    sitemap_lastmod_toggle_col, sitemap_lastmod_value_col = st.columns([1.2, 1.8], gap='small')
+    with sitemap_lastmod_toggle_col:
+        st.checkbox(
+            'Set sitemap lastmod',
+            key='use_sitemap_lastmod',
+            help='Use the selected date for sitemap <lastmod>. If left unchecked, <lastmod> is omitted.',
+        )
+    with sitemap_lastmod_value_col:
+        st.date_input(
+            'Sitemap last modified',
+            key='sitemap_lastmod_date',
+            value=cast(date, st.session_state.get('sitemap_lastmod_date', date.today())),
+            disabled=not bool(st.session_state.get('use_sitemap_lastmod', False)),
+            format='YYYY-MM-DD',
+        )
     st.text_area(
         'Global keywords',
         key='global_keywords_raw',
@@ -165,6 +182,7 @@ creator_orgs = cast(list[str], st.session_state.get('creator_orgs', []))
 publisher_org = cast(str | None, st.session_state.get('publisher_org'))
 site_base_url = cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL))
 sitemap_filename = cast(str, st.session_state.get('sitemap_filename', DEFAULT_SITEMAP_FILENAME))
+sitemap_lastmod = collect_sitemap_lastmod(st.session_state)
 global_keywords = collect_global_keywords(st.session_state)
 
 st.subheader('Dataset-Level Metadata')
@@ -248,6 +266,7 @@ with action_col:
         publisher_org=publisher_org,
         site_base_url=site_base_url.rstrip('/'),
         sitemap_filename=sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
+        sitemap_lastmod=sitemap_lastmod,
         global_keywords=global_keywords,
         dataset_keywords_by_accession=dataset_keywords_by_accession,
         selected_accessions=selected_accessions,
@@ -265,6 +284,7 @@ with action_col:
             export_config = ExportConfig(
                 site_base_url=site_base_url.rstrip('/'),
                 sitemap_filename=sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
+                sitemap_lastmod=sitemap_lastmod,
             )
             project = build_export_project(
                 study_id=cast(str, st.session_state.get('loaded_study_id', '')),
