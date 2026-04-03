@@ -168,7 +168,6 @@ with settings_col:
         st.date_input(
             'Sitemap last modified',
             key='sitemap_lastmod_date',
-            value=cast(date, st.session_state.get('sitemap_lastmod_date', date.today())),
             disabled=not bool(st.session_state.get('use_sitemap_lastmod', False)),
             format='YYYY-MM-DD',
         )
