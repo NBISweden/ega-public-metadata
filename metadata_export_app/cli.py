@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Command-line interface for the Streamlit-style metadata export workflow."""
+"""Command-line interface for FEGA Sweden Metadata Enrichment."""
 
 from __future__ import annotations
 
@@ -39,8 +39,8 @@ from metadata_export_app.state import build_export_archive_filename, build_proje
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog='metadata-export-app',
-        description='Command-line workflow for the Streamlit-style FEGA Sweden metadata export.',
+        prog='fega-metadata-enrichment',
+        description='Command-line workflow for FEGA Sweden Metadata Enrichment.',
     )
     subparsers = parser.add_subparsers(dest='command', required=True)
 
