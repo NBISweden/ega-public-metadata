@@ -21,6 +21,7 @@ from metadata_export.researchdata_se import (
     build_export_zip_bytes,
     build_sitemap_entries,
     compose_markdown,
+    compose_sitemap_xml,
     compose_yaml_front_matter,
     deserialize_export_project,
     export_study_metadata,
@@ -460,6 +461,19 @@ class ResearchDataExportTests(unittest.TestCase):
             'https://example.org/catalogue/datasets/EGAD1.html',
             'https://example.org/catalogue/datasets/EGAD2.html',
         ])
+        self.assertEqual([entry.lastmod for entry in entries], [None, None])
+
+    def test_build_sitemap_entries_uses_explicit_lastmod_when_provided(self) -> None:
+        entries = build_sitemap_entries([
+            ExportedDataset(
+                accession_id='EGAD1',
+                date_published='2024-01-01',
+                file_path=Path('/tmp/EGAD1.qmd'),
+                page_url='https://example.org/catalogue/datasets/EGAD1.html',
+            ),
+        ], sitemap_lastmod='2026-04-03')
+
+        self.assertEqual(entries[0].lastmod, '2026-04-03')
 
     def test_build_export_artifacts_supports_dataset_specific_keywords(self) -> None:
         study_context = StudyContext(
@@ -488,6 +502,7 @@ class ResearchDataExportTests(unittest.TestCase):
             export_config=ExportConfig(
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
+                sitemap_lastmod='2026-04-03',
             ),
             dataset_keywords_by_accession={
                 'EGAD50000001323': ['population genetics'],
@@ -512,6 +527,7 @@ class ResearchDataExportTests(unittest.TestCase):
             '<loc>https://example.org/catalogue/datasets/EGAD50000001323.html</loc>',
             artifacts.sitemap_file.content,
         )
+        self.assertIn('<lastmod>2026-04-03</lastmod>', artifacts.sitemap_file.content)
 
         zip_bytes = build_export_zip_bytes(artifacts)
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as archive:
@@ -594,10 +610,11 @@ class ResearchDataExportTests(unittest.TestCase):
             study_context=study_context,
             creator_orgs=['UU', 'LU'],
             publisher_org='BTB',
-            export_config=ExportConfig(
-                site_base_url='https://example.org',
-                sitemap_filename='catalogue-sitemap.xml',
-            ),
+                export_config=ExportConfig(
+                    site_base_url='https://example.org',
+                    sitemap_filename='catalogue-sitemap.xml',
+                    sitemap_lastmod='2026-04-03',
+                ),
             global_keywords=['genomics'],
             dataset_keywords_by_accession={
                 'EGAD50000001323': ['population genetics'],
@@ -614,6 +631,7 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(restored_project['creator_orgs'], ['UU', 'LU'])
         self.assertEqual(restored_project['publisher_org'], 'BTB')
         self.assertEqual(restored_project['global_keywords'], ['genomics'])
+        self.assertEqual(restored_project['sitemap_lastmod'], '2026-04-03')
         self.assertEqual(
             restored_project['datasets'],
             [
@@ -672,8 +690,9 @@ class ResearchDataExportTests(unittest.TestCase):
 
         restored_project = deserialize_export_project(project_json)
 
-        self.assertEqual(restored_project['schema_version'], 2)
+        self.assertEqual(restored_project['schema_version'], 3)
         self.assertEqual(restored_project['global_keywords'], [])
+        self.assertIsNone(restored_project['sitemap_lastmod'])
         self.assertEqual(restored_project['datasets'][0]['keywords'], ['population genetics'])
 
     def test_build_export_artifacts_matches_golden_output(self) -> None:
@@ -734,7 +753,7 @@ class ResearchDataExportTests(unittest.TestCase):
                     file_path=Path(tmp_dir) / 'EGAD50000001323.qmd',
                     page_url='https://example.org/catalogue/datasets/EGAD50000001323.html',
                 ),
-            ])
+            ], sitemap_lastmod='2026-04-03')
 
             write_sitemap_file(sitemap_path, entries)
 
@@ -747,7 +766,22 @@ class ResearchDataExportTests(unittest.TestCase):
                 locations[0].text,
                 'https://example.org/catalogue/datasets/EGAD50000001323.html',
             )
-            self.assertEqual(last_modified[0].text, '2024-01-02')
+            self.assertEqual(last_modified[0].text, '2026-04-03')
+
+    def test_compose_sitemap_xml_omits_lastmod_when_not_provided(self) -> None:
+        entries = build_sitemap_entries([
+            ExportedDataset(
+                accession_id='EGAD50000001323',
+                date_published='2024-01-02',
+                file_path=Path('/tmp/EGAD50000001323.qmd'),
+                page_url='https://example.org/catalogue/datasets/EGAD50000001323.html',
+            ),
+        ])
+
+        sitemap_xml = compose_sitemap_xml(entries)
+
+        self.assertIn('<loc>https://example.org/catalogue/datasets/EGAD50000001323.html</loc>', sitemap_xml)
+        self.assertNotIn('<lastmod>', sitemap_xml)
 
     def test_get_related_entities_fetches_all_pages(self) -> None:
         fake_session = FakeSession([

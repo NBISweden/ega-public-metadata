@@ -126,6 +126,7 @@ ExportProject = TypedDict(
         'global_keywords': list[str],
         'site_base_url': str,
         'sitemap_filename': str,
+        'sitemap_lastmod': str | None,
         'datasets': list[ExportProjectDataset],
     },
 )
@@ -142,13 +143,14 @@ class ExportedDataset:
 @dataclass(frozen=True)
 class SitemapEntry:
     loc: str
-    lastmod: str
+    lastmod: str | None
 
 
 @dataclass(frozen=True)
 class ExportConfig:
     site_base_url: str
     sitemap_filename: str
+    sitemap_lastmod: str | None = None
 
 
 @dataclass(frozen=True)
@@ -163,8 +165,8 @@ class ExportArtifacts:
     sitemap_file: GeneratedFile
 
 
-PROJECT_SCHEMA_VERSION = 2
-SUPPORTED_PROJECT_SCHEMA_VERSIONS = {1, PROJECT_SCHEMA_VERSION}
+PROJECT_SCHEMA_VERSION = 3
+SUPPORTED_PROJECT_SCHEMA_VERSIONS = {1, 2, PROJECT_SCHEMA_VERSION}
 
 
 class MetadataValidationError(ValueError):
@@ -403,6 +405,7 @@ def build_export_project(
         global_keywords=list(global_keywords or []),
         site_base_url=export_config.site_base_url,
         sitemap_filename=export_config.sitemap_filename,
+        sitemap_lastmod=export_config.sitemap_lastmod,
         datasets=datasets,
     )
 
@@ -452,6 +455,13 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         'sitemap_filename',
         'project file',
     )
+    raw_sitemap_lastmod = payload.get('sitemap_lastmod')
+    sitemap_lastmod = None
+    if raw_sitemap_lastmod is not None:
+        sitemap_lastmod = validate_iso_date_string(
+            require_non_empty_string(raw_sitemap_lastmod, 'sitemap_lastmod', 'project file'),
+            'sitemap_lastmod',
+        )
     raw_study_context = payload.get('study_context')
     if not isinstance(raw_study_context, dict):
         raise MetadataValidationError('Project file is missing study_context')
@@ -500,6 +510,7 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         global_keywords=global_keywords,
         site_base_url=site_base_url,
         sitemap_filename=sitemap_filename,
+        sitemap_lastmod=sitemap_lastmod,
         datasets=project_datasets,
     )
 
@@ -512,6 +523,7 @@ def build_export_artifacts_from_project(project: ExportProject) -> ExportArtifac
         export_config=ExportConfig(
             site_base_url=project['site_base_url'],
             sitemap_filename=project['sitemap_filename'],
+            sitemap_lastmod=project.get('sitemap_lastmod'),
         ),
         default_keywords=project.get('global_keywords', []),
         dataset_keywords_by_accession={
@@ -599,7 +611,10 @@ def build_export_artifacts(
             )
         )
 
-    sitemap_entries = build_sitemap_entries(exported_datasets)
+    sitemap_entries = build_sitemap_entries(
+        exported_datasets,
+        export_config.sitemap_lastmod,
+    )
     return ExportArtifacts(
         dataset_files=dataset_files,
         sitemap_file=GeneratedFile(
@@ -634,9 +649,12 @@ def build_export_zip_bytes(
     return buffer.getvalue()
 
 
-def build_sitemap_entries(exported_datasets: list[ExportedDataset]) -> list[SitemapEntry]:
+def build_sitemap_entries(
+    exported_datasets: list[ExportedDataset],
+    sitemap_lastmod: str | None = None,
+) -> list[SitemapEntry]:
     return sorted([
-        SitemapEntry(loc=dataset.page_url, lastmod=dataset.date_published)
+        SitemapEntry(loc=dataset.page_url, lastmod=sitemap_lastmod)
         for dataset in exported_datasets
     ], key=lambda entry: entry.loc)
 
@@ -857,6 +875,15 @@ def parse_iso_date(value: str) -> str:
     return dt_published.date().isoformat()
 
 
+def validate_iso_date_string(value: str, field_name: str) -> str:
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date().isoformat()
+    except ValueError as exc:
+        raise MetadataValidationError(
+            f'Invalid {field_name} value "{value}"'
+        ) from exc
+
+
 def build_dataset_description(
     description: str,
     num_datasets: int,
@@ -895,12 +922,13 @@ def compose_sitemap_xml(entries: list[SitemapEntry]) -> str:
     for entry in entries:
         url_element = ET.SubElement(urlset, 'url')
         ET.SubElement(url_element, 'loc').text = entry.loc
-        ET.SubElement(url_element, 'lastmod').text = entry.lastmod
+        if entry.lastmod is not None:
+            ET.SubElement(url_element, 'lastmod').text = entry.lastmod
 
     ET.indent(urlset, space='  ')
     buffer = io.BytesIO()
     ET.ElementTree(urlset).write(buffer, encoding='utf-8', xml_declaration=True)
-    return buffer.getvalue().decode('utf-8')
+    return buffer.getvalue().decode('utf-8') + '\n'
 
 
 def compose_yaml_front_matter(dataset: ResearchDataset) -> str:
