@@ -273,6 +273,11 @@ def parse_args(args: list[str]) -> argparse.Namespace:
     parser.add_argument(
         '--creator', choices=ORGANISATIONS.keys(), help='main organisation that collected the data')
     parser.add_argument(
+        '--publisher',
+        choices=ORGANISATIONS.keys(),
+        help='organisation responsible for publishing the dataset metadata record',
+    )
+    parser.add_argument(
         '--keyword',
         action='append',
         dest='keywords',
@@ -307,6 +312,7 @@ def export_study_metadata(args: argparse.Namespace) -> None:
         study_context=study_context,
         output_dir=output_dir,
         creator_org=args.creator,
+        publisher_org=args.publisher,
         keywords=args.keywords or [],
         export_config=export_config,
     )
@@ -345,6 +351,7 @@ def export_dataset_files(
     study_context: StudyContext,
     output_dir: Path,
     creator_org: str | None,
+    publisher_org: str | None,
     keywords: list[str],
     export_config: ExportConfig,
 ) -> list[ExportedDataset]:
@@ -358,6 +365,7 @@ def export_dataset_files(
             study_title=study_context.title,
             study_url=study_context.url,
             creator_org=creator_org,
+            publisher_org=publisher_org,
             keywords=keywords,
             site_base_url=export_config.site_base_url,
         )
@@ -461,6 +469,7 @@ def transform_ega_dataset(
     study_title: str,
     study_url: str,
     creator_org: str | None = None,
+    publisher_org: str | None = None,
     keywords: list[str] | None = None,
     site_base_url: str = DEFAULT_SITE_BASE_URL,
 ) -> ResearchDataset:
@@ -473,6 +482,7 @@ def transform_ega_dataset(
         study_url=study_url,
         num_datasets=num_datasets,
         creator_org=creator_org,
+        publisher_org=publisher_org,
         keywords=keywords,
         site_base_url=site_base_url,
     )
@@ -520,6 +530,7 @@ def normalize_ega_dataset_metadata(
     study_url: str,
     num_datasets: int,
     creator_org: str | None = None,
+    publisher_org: str | None = None,
     keywords: list[str] | None = None,
     site_base_url: str = DEFAULT_SITE_BASE_URL,
 ) -> NormalizedDatasetMetadata:
@@ -527,7 +538,8 @@ def normalize_ega_dataset_metadata(
     publisher = build_organisation('FEGA-SE')
     if creator_org not in (None, 'unspecified'):
         creator = build_organisation(creator_org)
-        publisher = build_organisation(creator_org)
+    if publisher_org not in (None, 'unspecified'):
+        publisher = build_organisation(publisher_org)
     normalized_keywords = list(keywords or [])
 
     return NormalizedDatasetMetadata(
