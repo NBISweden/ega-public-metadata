@@ -15,14 +15,18 @@ from metadata_export.researchdata_se import (
     MetadataValidationError,
     StudyContext,
     build_export_artifacts,
+    build_export_artifacts_from_project,
+    build_export_project,
     build_export_zip_bytes,
     build_sitemap_entries,
     compose_yaml_front_matter,
+    deserialize_export_project,
     export_study_metadata,
     fetch_study_context,
     main,
     normalize_ega_dataset_metadata,
     parse_args,
+    serialize_export_project,
     validate_ega_dataset,
     validate_ega_study,
     transform_ega_dataset,
@@ -423,6 +427,72 @@ class ResearchDataExportTests(unittest.TestCase):
                 sorted(archive.namelist()),
                 ['EGAD50000001323.qmd', 'EGAD50000001324.qmd', 'catalogue-sitemap.xml'],
             )
+
+    def test_export_project_roundtrip_preserves_snapshot_and_artifacts(self) -> None:
+        study_context = StudyContext(
+            title='SweGen',
+            url='http://identifiers.org/ega.study:EGAS50000000906',
+            datasets=[
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'Dataset A',
+                    'released_date': '2024-01-02T10:00:00Z',
+                    'description': 'First dataset description.',
+                },
+                {
+                    'accession_id': 'EGAD50000001324',
+                    'title': 'Dataset B',
+                    'released_date': '2024-01-03T10:00:00Z',
+                    'description': 'Second dataset description.',
+                },
+            ],
+        )
+        project = build_export_project(
+            study_id='EGAS50000000906',
+            study_context=study_context,
+            creator_orgs=['UU', 'LU'],
+            publisher_org='BTB',
+            export_config=ExportConfig(
+                site_base_url='https://example.org',
+                sitemap_filename='catalogue-sitemap.xml',
+            ),
+            dataset_keywords_by_accession={
+                'EGAD50000001323': ['population genetics'],
+                'EGAD50000001324': ['reference cohort'],
+            },
+            selected_accessions={'EGAD50000001324'},
+        )
+
+        project_json = serialize_export_project(project)
+        restored_project = deserialize_export_project(project_json)
+        artifacts = build_export_artifacts_from_project(restored_project)
+
+        self.assertEqual(restored_project['study_id'], 'EGAS50000000906')
+        self.assertEqual(restored_project['creator_orgs'], ['UU', 'LU'])
+        self.assertEqual(restored_project['publisher_org'], 'BTB')
+        self.assertEqual(
+            restored_project['datasets'],
+            [
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'include': False,
+                    'keywords': ['population genetics'],
+                },
+                {
+                    'accession_id': 'EGAD50000001324',
+                    'include': True,
+                    'keywords': ['reference cohort'],
+                },
+            ],
+        )
+        self.assertEqual(
+            [dataset_file.filename for dataset_file in artifacts.dataset_files],
+            ['EGAD50000001324.qmd'],
+        )
+        self.assertIn(
+            'categories:\n  - "reference cohort"',
+            artifacts.dataset_files[0].content,
+        )
 
     def test_write_sitemap_file_writes_complete_document(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

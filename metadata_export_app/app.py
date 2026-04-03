@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 
@@ -20,13 +21,17 @@ from metadata_export_core.core import (
     DEFAULT_SITEMAP_FILENAME,
     EGAClient,
     ExportConfig,
+    ExportProject,
     MetadataValidationError,
     ORGANISATIONS,
     PUBLISHER_ORGANISATIONS,
     StudyContext,
-    build_export_artifacts,
+    build_export_artifacts_from_project,
+    build_export_project,
     build_export_zip_bytes,
+    deserialize_export_project,
     fetch_study_context,
+    serialize_export_project,
     transform_ega_dataset,
 )
 
@@ -66,6 +71,31 @@ def initialize_dataset_state(study_context: StudyContext) -> None:
             st.session_state[keywords_key] = ''
 
 
+def restore_project_to_session(project: ExportProject) -> None:
+    study_context = project['study_context']
+    st.session_state['study_context'] = study_context
+    st.session_state['loaded_study_id'] = project['study_id']
+    st.session_state['creator_orgs'] = project['creator_orgs']
+    st.session_state['publisher_org'] = project['publisher_org']
+    st.session_state['site_base_url'] = project['site_base_url']
+    st.session_state['sitemap_filename'] = project['sitemap_filename']
+    st.session_state.pop('artifacts', None)
+    initialize_dataset_state(study_context)
+    dataset_state = {
+        dataset['accession_id']: dataset
+        for dataset in project['datasets']
+    }
+    for dataset in study_context.datasets:
+        accession_id = dataset['accession_id']
+        project_dataset = dataset_state.get(accession_id)
+        if project_dataset is None:
+            st.session_state[f'include_{accession_id}'] = False
+            st.session_state[f'keywords_{accession_id}'] = ''
+            continue
+        st.session_state[f'include_{accession_id}'] = project_dataset['include']
+        st.session_state[f'keywords_{accession_id}'] = ', '.join(project_dataset['keywords'])
+
+
 def build_preview_dataset(
     study_context: StudyContext,
     accession_id: str,
@@ -102,6 +132,19 @@ This app keeps the export logic separate from the UI and lets you enrich each da
 especially keywords, before generating `.qmd` files and a sitemap bundle.
 """
 )
+
+uploaded_project = st.file_uploader(
+    'Load saved export project',
+    type=['json'],
+    help='Load a previously saved project snapshot to regenerate or update export files.',
+)
+if uploaded_project is not None:
+    try:
+        project = deserialize_export_project(uploaded_project.getvalue().decode('utf-8'))
+        restore_project_to_session(project)
+        st.success(f'Loaded project for study {project["study_id"]}.')
+    except (UnicodeDecodeError, MetadataValidationError, json.JSONDecodeError) as exc:
+        st.error(f'Failed to load project file: {exc}')
 
 with st.form('study_lookup'):
     study_id = st.text_input('EGA Study ID', placeholder='EGAS50000000906')
@@ -148,12 +191,16 @@ with settings_col:
     )
     st.session_state['creator_orgs'] = creator_orgs
 
+    publisher_default = cast(str, st.session_state.get('publisher_org', PUBLISHER_ORGANISATIONS[0]))
+    if publisher_default not in PUBLISHER_ORGANISATIONS:
+        publisher_default = PUBLISHER_ORGANISATIONS[0]
     publisher_org = st.selectbox(
         'Publisher',
         options=list(PUBLISHER_ORGANISATIONS),
-        index=0,
+        index=list(PUBLISHER_ORGANISATIONS).index(publisher_default),
         help='Dataset publisher. FEGA Sweden is intentionally excluded here.',
     )
+    st.session_state['publisher_org'] = publisher_org
     site_base_url = st.text_input(
         'Site base URL',
         value=cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL)),
@@ -212,16 +259,21 @@ with action_col:
                 site_base_url=site_base_url.rstrip('/'),
                 sitemap_filename=sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
             )
-            artifacts = build_export_artifacts(
+            project = build_export_project(
+                study_id=cast(str, st.session_state.get('loaded_study_id', '')),
                 study_context=study_context,
                 creator_orgs=creator_orgs,
                 publisher_org=publisher_org,
                 export_config=export_config,
-                default_keywords=[],
                 dataset_keywords_by_accession=dataset_keywords_by_accession,
                 selected_accessions=selected_accessions,
             )
+            artifacts = build_export_artifacts_from_project(project)
+            project_json = serialize_export_project(project)
             zip_bytes = build_export_zip_bytes(artifacts)
+            st.session_state['artifacts'] = artifacts
+            st.session_state['project_json'] = project_json
+            st.session_state['project'] = project
             st.success(
                 f'Prepared {len(artifacts.dataset_files)} dataset files and {artifacts.sitemap_file.filename}.'
             )
@@ -232,7 +284,13 @@ with action_col:
                 mime='application/zip',
                 use_container_width=True,
             )
-            st.session_state['artifacts'] = artifacts
+            st.download_button(
+                'Download Project JSON',
+                data=project_json,
+                file_name='fega-sweden-metadata-project.json',
+                mime='application/json',
+                use_container_width=True,
+            )
         except MetadataValidationError as exc:
             st.error(f'Metadata validation failed: {exc}')
 

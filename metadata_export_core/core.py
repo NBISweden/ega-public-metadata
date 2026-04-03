@@ -9,8 +9,8 @@ import sys
 import xml.etree.ElementTree as ET
 import zipfile
 
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import asdict, dataclass, is_dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -105,6 +105,31 @@ class StudyContext:
     datasets: list[EGADataset]
 
 
+ExportProjectDataset = TypedDict(
+    'ExportProjectDataset',
+    {
+        'accession_id': str,
+        'include': bool,
+        'keywords': list[str],
+    },
+)
+
+ExportProject = TypedDict(
+    'ExportProject',
+    {
+        'schema_version': int,
+        'created_at': str,
+        'study_id': str,
+        'study_context': StudyContext,
+        'creator_orgs': list[str],
+        'publisher_org': str,
+        'site_base_url': str,
+        'sitemap_filename': str,
+        'datasets': list[ExportProjectDataset],
+    },
+)
+
+
 @dataclass(frozen=True)
 class ExportedDataset:
     accession_id: str
@@ -135,6 +160,9 @@ class GeneratedFile:
 class ExportArtifacts:
     dataset_files: list[GeneratedFile]
     sitemap_file: GeneratedFile
+
+
+PROJECT_SCHEMA_VERSION = 1
 
 
 class MetadataValidationError(ValueError):
@@ -339,6 +367,149 @@ def export_study_metadata(args: argparse.Namespace) -> None:
     )
     output_dir = ensure_output_dir(args.output_dir)
     write_export_artifacts(output_dir, artifacts)
+
+
+def build_export_project(
+    study_id: str,
+    study_context: StudyContext,
+    creator_orgs: list[str],
+    publisher_org: str,
+    export_config: ExportConfig,
+    dataset_keywords_by_accession: dict[str, list[str]] | None = None,
+    selected_accessions: set[str] | None = None,
+) -> ExportProject:
+    keywords_by_accession = dataset_keywords_by_accession or {}
+    datasets: list[ExportProjectDataset] = []
+    for dataset in study_context.datasets:
+        accession_id = dataset['accession_id']
+        datasets.append(
+            ExportProjectDataset(
+                accession_id=accession_id,
+                include=selected_accessions is None or accession_id in selected_accessions,
+                keywords=list(keywords_by_accession.get(accession_id, [])),
+            )
+        )
+    return ExportProject(
+        schema_version=PROJECT_SCHEMA_VERSION,
+        created_at=datetime.now(timezone.utc).isoformat(),
+        study_id=study_id,
+        study_context=study_context,
+        creator_orgs=list(creator_orgs),
+        publisher_org=publisher_org,
+        site_base_url=export_config.site_base_url,
+        sitemap_filename=export_config.sitemap_filename,
+        datasets=datasets,
+    )
+
+
+def serialize_export_project(project: ExportProject) -> str:
+    return json.dumps(project, indent=2, ensure_ascii=False, default=_json_default)
+
+
+def _json_default(value: object) -> object:
+    if is_dataclass(value):
+        return asdict(value)
+    raise TypeError(f'Object of type {type(value).__name__} is not JSON serializable')
+
+
+def deserialize_export_project(project_json: str) -> ExportProject:
+    payload = json.loads(project_json)
+    if not isinstance(payload, dict):
+        raise MetadataValidationError('Project file must contain a JSON object')
+    schema_version = payload.get('schema_version')
+    if schema_version != PROJECT_SCHEMA_VERSION:
+        raise MetadataValidationError(
+            f'Unsupported project schema version "{schema_version}"'
+        )
+    study_id = require_non_empty_string(payload.get('study_id'), 'study_id', 'project file')
+    creator_orgs_raw = payload.get('creator_orgs')
+    if not isinstance(creator_orgs_raw, list) or not creator_orgs_raw:
+        raise MetadataValidationError('Project file must include one or more creator_orgs')
+    creator_orgs = [
+        require_non_empty_string(creator_org, 'creator_orgs', 'project file')
+        for creator_org in creator_orgs_raw
+    ]
+    publisher_org = require_non_empty_string(payload.get('publisher_org'), 'publisher_org', 'project file')
+    if publisher_org not in PUBLISHER_ORGANISATIONS:
+        raise MetadataValidationError(
+            f'Project file contains invalid publisher "{publisher_org}"'
+        )
+    site_base_url = require_non_empty_string(payload.get('site_base_url'), 'site_base_url', 'project file')
+    sitemap_filename = require_non_empty_string(
+        payload.get('sitemap_filename'),
+        'sitemap_filename',
+        'project file',
+    )
+    raw_study_context = payload.get('study_context')
+    if not isinstance(raw_study_context, dict):
+        raise MetadataValidationError('Project file is missing study_context')
+    raw_datasets = raw_study_context.get('datasets')
+    if not isinstance(raw_datasets, list):
+        raise MetadataValidationError('Project file study_context is missing datasets')
+    study_context = StudyContext(
+        title=require_non_empty_string(raw_study_context.get('title'), 'title', 'project study_context'),
+        url=require_non_empty_string(raw_study_context.get('url'), 'url', 'project study_context'),
+        datasets=parse_ega_dataset_collection(
+            [cast(dict[str, object], dataset) for dataset in raw_datasets],
+            study_id=study_id,
+        ),
+    )
+    raw_project_datasets = payload.get('datasets')
+    if not isinstance(raw_project_datasets, list):
+        raise MetadataValidationError('Project file is missing datasets configuration')
+    project_datasets: list[ExportProjectDataset] = []
+    for dataset in raw_project_datasets:
+        if not isinstance(dataset, dict):
+            raise MetadataValidationError('Project file contains an invalid dataset entry')
+        raw_keywords = dataset.get('keywords', [])
+        if not isinstance(raw_keywords, list):
+            raise MetadataValidationError('Project dataset keywords must be a list')
+        project_datasets.append(
+            ExportProjectDataset(
+                accession_id=require_non_empty_string(
+                    dataset.get('accession_id'),
+                    'accession_id',
+                    'project dataset',
+                ),
+                include=bool(dataset.get('include', False)),
+                keywords=[
+                    require_non_empty_string(keyword, 'keywords', 'project dataset')
+                    for keyword in raw_keywords
+                ],
+            )
+        )
+    return ExportProject(
+        schema_version=PROJECT_SCHEMA_VERSION,
+        created_at=require_non_empty_string(payload.get('created_at'), 'created_at', 'project file'),
+        study_id=study_id,
+        study_context=study_context,
+        creator_orgs=creator_orgs,
+        publisher_org=publisher_org,
+        site_base_url=site_base_url,
+        sitemap_filename=sitemap_filename,
+        datasets=project_datasets,
+    )
+
+
+def build_export_artifacts_from_project(project: ExportProject) -> ExportArtifacts:
+    return build_export_artifacts(
+        study_context=project['study_context'],
+        creator_orgs=project['creator_orgs'],
+        publisher_org=project['publisher_org'],
+        export_config=ExportConfig(
+            site_base_url=project['site_base_url'],
+            sitemap_filename=project['sitemap_filename'],
+        ),
+        dataset_keywords_by_accession={
+            dataset['accession_id']: dataset['keywords']
+            for dataset in project['datasets']
+        },
+        selected_accessions={
+            dataset['accession_id']
+            for dataset in project['datasets']
+            if dataset['include']
+        },
+    )
 
 
 def fetch_study_context(client: EGAClient, study_id: str) -> StudyContext:
