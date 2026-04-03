@@ -660,12 +660,16 @@ def require_non_empty_string(value: object, field_name: str, context: str) -> st
         raise MetadataValidationError(
             f'{context} is missing required string field "{field_name}"'
         )
-    normalized_value = value.strip()
+    normalized_value = normalize_line_endings(value).strip()
     if not normalized_value:
         raise MetadataValidationError(
             f'{context} has empty required field "{field_name}"'
         )
     return normalized_value
+
+
+def normalize_line_endings(value: str) -> str:
+    return value.replace('\r\n', '\n').replace('\r', '\n')
 
 
 def validate_ega_study(ega_study: EGAStudy, study_id: str) -> EGAStudy:
@@ -859,7 +863,7 @@ def build_dataset_description(
     study_title: str,
     study_url: str,
 ) -> str:
-    description = description.strip()
+    description = normalize_line_endings(description).strip()
     if num_datasets == 1:
         study_summary = (
             f'This dataset is included in the study "{study_title}" ({study_url}).'

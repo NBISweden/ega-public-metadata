@@ -214,6 +214,25 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertIn('This dataset is one of 2 datasets', dataset['description'])
         self.assertIn('study "SweGen"', dataset['description'])
 
+    def test_transform_ega_dataset_normalizes_crlf_in_description(self) -> None:
+        dataset = transform_ega_dataset(
+            {
+                'accession_id': 'EGAD50000001323',
+                'title': 'SweGen reference dataset',
+                'released_date': '2024-01-02T03:04:05Z',
+                'description': 'Line one.\r\n\r\nLine two.',
+            },
+            num_datasets=1,
+            study_title='SweGen',
+            study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            creator_orgs=['UU'],
+            publisher_org='LU',
+            keywords=['genomics'],
+        )
+
+        self.assertIn('Line one.\n\nLine two.', dataset['description'])
+        self.assertNotIn('\r', dataset['description'])
+
     def test_normalize_ega_dataset_metadata_builds_internal_metadata_model(self) -> None:
         normalized = normalize_ega_dataset_metadata(
             accession_id='EGAD50000001323',
