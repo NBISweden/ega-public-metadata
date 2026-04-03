@@ -17,6 +17,8 @@ The app is intended to replace the existing CLI export workflow over time, but t
 -   Download an individual generated dataset file or the sitemap directly from the preview
 -   Download a zip archive containing dataset files, sitemap, and the saved project JSON, with study ID in the filename
 
+The app generates preview and download artifacts when you explicitly click `Generate export`. If you change metadata afterwards, the app keeps showing the last generated snapshot until you generate again.
+
 ## Prerequisites
 
 -   Python 3

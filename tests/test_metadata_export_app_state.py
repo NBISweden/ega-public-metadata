@@ -3,8 +3,10 @@ import unittest
 from metadata_export.researchdata_se import ExportConfig, StudyContext, build_export_project
 from metadata_export_app.state import (
     build_export_archive_filename,
+    build_export_request_signature,
     build_preview_dataset_from_project,
     build_project_filename,
+    clear_generated_export_state,
     collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
     collect_global_keywords,
@@ -55,6 +57,47 @@ class MetadataExportAppStateTests(unittest.TestCase):
             build_project_filename('EGAS50000000906'),
             'fega-sweden-metadata-project-EGAS50000000906.json',
         )
+
+    def test_build_export_request_signature_changes_when_export_inputs_change(self) -> None:
+        base_signature = build_export_request_signature(
+            study_id='EGAS50000000906',
+            creator_orgs=['UU'],
+            publisher_org='LU',
+            site_base_url='https://example.org',
+            sitemap_filename='sitemap.xml',
+            global_keywords=['genomics'],
+            dataset_keywords_by_accession={'EGAD50000001323': ['reference cohort']},
+            selected_accessions={'EGAD50000001323'},
+        )
+        changed_signature = build_export_request_signature(
+            study_id='EGAS50000000906',
+            creator_orgs=['UU'],
+            publisher_org='LU',
+            site_base_url='https://example.org',
+            sitemap_filename='sitemap.xml',
+            global_keywords=['genomics', 'whole genome'],
+            dataset_keywords_by_accession={'EGAD50000001323': ['reference cohort']},
+            selected_accessions={'EGAD50000001323'},
+        )
+
+        self.assertNotEqual(base_signature, changed_signature)
+
+    def test_clear_generated_export_state_removes_last_generated_snapshot(self) -> None:
+        session_state = {
+            'artifacts': 'stale',
+            'project_json': 'stale',
+            'project': 'stale',
+            'last_generated_signature': 'stale',
+            'other_key': 'keep',
+        }
+
+        clear_generated_export_state(session_state)
+
+        self.assertNotIn('artifacts', session_state)
+        self.assertNotIn('project_json', session_state)
+        self.assertNotIn('project', session_state)
+        self.assertNotIn('last_generated_signature', session_state)
+        self.assertEqual(session_state['other_key'], 'keep')
 
     def test_initialize_form_state_defaults_sets_empty_publisher_without_overwriting(self) -> None:
         session_state = {
@@ -119,6 +162,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             'artifacts': 'stale',
             'project_json': 'stale',
             'project': 'stale',
+            'last_generated_signature': 'stale',
         }
 
         restore_project_to_session_state(project, session_state)
@@ -139,6 +183,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertNotIn('artifacts', session_state)
         self.assertNotIn('project_json', session_state)
         self.assertNotIn('project', session_state)
+        self.assertNotIn('last_generated_signature', session_state)
 
     def test_build_preview_dataset_from_project_uses_project_snapshot(self) -> None:
         project = build_export_project(

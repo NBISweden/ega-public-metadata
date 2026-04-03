@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 
 from collections.abc import MutableMapping
@@ -26,6 +27,38 @@ def build_export_archive_filename(study_id: str) -> str:
 
 def build_project_filename(study_id: str) -> str:
     return f'fega-sweden-metadata-project-{study_id}.json'
+
+
+def clear_generated_export_state(session_state: SessionStateMapping) -> None:
+    session_state.pop('artifacts', None)
+    session_state.pop('project_json', None)
+    session_state.pop('project', None)
+    session_state.pop('last_generated_signature', None)
+
+
+def build_export_request_signature(
+    study_id: str,
+    creator_orgs: list[str],
+    publisher_org: str | None,
+    site_base_url: str,
+    sitemap_filename: str,
+    global_keywords: list[str],
+    dataset_keywords_by_accession: dict[str, list[str]],
+    selected_accessions: set[str],
+) -> str:
+    return json.dumps(
+        {
+            'study_id': study_id,
+            'creator_orgs': creator_orgs,
+            'publisher_org': publisher_org,
+            'site_base_url': site_base_url,
+            'sitemap_filename': sitemap_filename,
+            'global_keywords': global_keywords,
+            'dataset_keywords_by_accession': dataset_keywords_by_accession,
+            'selected_accessions': sorted(selected_accessions),
+        },
+        sort_keys=True,
+    )
 
 
 def initialize_form_state_defaults(session_state: SessionStateMapping) -> None:
@@ -77,9 +110,7 @@ def restore_project_to_session_state(
     session_state['global_keywords_raw'] = ', '.join(project.get('global_keywords', []))
     session_state['site_base_url'] = project['site_base_url']
     session_state['sitemap_filename'] = project['sitemap_filename']
-    session_state.pop('artifacts', None)
-    session_state.pop('project_json', None)
-    session_state.pop('project', None)
+    clear_generated_export_state(session_state)
     initialize_dataset_state(study_context, session_state)
     dataset_state = {
         dataset['accession_id']: dataset

@@ -36,8 +36,10 @@ from metadata_export_core.core import (
 )
 from metadata_export_app.state import (
     build_export_archive_filename,
+    build_export_request_signature,
     build_preview_dataset_from_project,
     build_project_filename,
+    clear_generated_export_state,
     collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
     collect_global_keywords,
@@ -98,6 +100,7 @@ if fetch_clicked:
         st.error('Enter an EGA Study ID first.')
     else:
         try:
+            clear_generated_export_state(st.session_state)
             st.session_state['study_context'] = load_study_context(study_id.strip())
             st.session_state['loaded_study_id'] = study_id.strip()
         except requests.RequestException as exc:
@@ -236,9 +239,25 @@ with action_col:
         selected_accessions=selected_accessions,
         selected_accessions_missing_keywords=selected_accessions_missing_keywords,
     )
+    current_signature = build_export_request_signature(
+        study_id=cast(str, st.session_state.get('loaded_study_id', '')),
+        creator_orgs=creator_orgs,
+        publisher_org=publisher_org,
+        site_base_url=site_base_url.rstrip('/'),
+        sitemap_filename=sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
+        global_keywords=global_keywords,
+        dataset_keywords_by_accession=dataset_keywords_by_accession,
+        selected_accessions=selected_accessions,
+    )
+    generate_clicked = st.button(
+        'Generate export',
+        type='primary',
+        use_container_width=True,
+        disabled=validation_message is not None,
+    )
     if validation_message is not None:
         st.warning(validation_message)
-    else:
+    elif generate_clicked:
         try:
             export_config = ExportConfig(
                 site_base_url=site_base_url.rstrip('/'),
@@ -269,30 +288,55 @@ with action_col:
             st.session_state['artifacts'] = artifacts
             st.session_state['project_json'] = project_json
             st.session_state['project'] = project
+            st.session_state['last_generated_signature'] = current_signature
             st.success(
                 f'Prepared {len(artifacts.dataset_files)} dataset files and {artifacts.sitemap_file.filename}.'
-            )
-            st.download_button(
-                'Download Export ZIP',
-                data=zip_bytes,
-                file_name=build_export_archive_filename(project['study_id']),
-                mime='application/zip',
-                use_container_width=True,
-            )
-            st.download_button(
-                'Download Project JSON',
-                data=project_json,
-                file_name=project_filename,
-                mime='application/json',
-                use_container_width=True,
             )
         except MetadataValidationError as exc:
             st.error(f'Metadata validation failed: {exc}')
 
-with preview_col:
-    st.subheader('Preview')
     artifacts = st.session_state.get('artifacts')
     project = cast(ExportProject | None, st.session_state.get('project'))
+    last_generated_signature = cast(str | None, st.session_state.get('last_generated_signature'))
+    has_pending_changes = (
+        artifacts is not None
+        and last_generated_signature is not None
+        and current_signature != last_generated_signature
+    )
+    if validation_message is None and artifacts is None:
+        st.info('Click Generate export to prepare preview and downloads.')
+    elif has_pending_changes:
+        st.info('Preview and downloads reflect the last generated export. Generate again to update them.')
+
+    if artifacts is not None and project is not None:
+        project_json = cast(str, st.session_state.get('project_json', ''))
+        project_filename = build_project_filename(project['study_id'])
+        zip_bytes = build_export_zip_bytes(
+            artifacts,
+            extra_files=[
+                GeneratedFile(
+                    filename=project_filename,
+                    content=project_json,
+                )
+            ],
+        )
+        st.download_button(
+            'Download Export ZIP',
+            data=zip_bytes,
+            file_name=build_export_archive_filename(project['study_id']),
+            mime='application/zip',
+            use_container_width=True,
+        )
+        st.download_button(
+            'Download Project JSON',
+            data=project_json,
+            file_name=project_filename,
+            mime='application/json',
+            use_container_width=True,
+        )
+
+with preview_col:
+    st.subheader('Preview')
     if not artifacts or project is None:
         st.info('Generate an export to preview the resulting files.')
     else:
