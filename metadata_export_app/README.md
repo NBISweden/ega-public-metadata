@@ -10,6 +10,7 @@ The app is intended to replace the existing CLI export workflow over time, but t
 -   Set one or more creators at study level
 -   Set a required publisher at study level
 -   Add global keywords for all datasets plus additional keywords per dataset
+-   Include or exclude datasets directly alongside each dataset expander
 -   Save a reproducible project snapshot as JSON
 -   Load a saved project snapshot and continue editing
 -   Preview generated `qmd` and `schema.org` JSON-LD

@@ -31,6 +31,7 @@ from metadata_export_core.core import (
     deserialize_export_project,
     ensure_output_dir,
     fetch_study_context,
+    merge_keywords,
     serialize_export_project,
     write_export_artifacts,
 )
@@ -45,6 +46,7 @@ from metadata_export_app.state import (
     get_publisher_select_index,
     initialize_dataset_state,
     initialize_form_state_defaults,
+    parse_keywords,
     restore_project_to_session_state,
 )
 
@@ -171,25 +173,50 @@ st.caption(
     'dataset-specific keywords, or both.'
 )
 
+actions_col, spacer_col = st.columns([1.6, 3.4], gap='large')
+with actions_col:
+    st.markdown('**Selection**')
+    selection_button_cols = st.columns(2, gap='small')
+    with selection_button_cols[0]:
+        if st.button('Select all', use_container_width=True):
+            for dataset in study_context.datasets:
+                st.session_state[f"include_{dataset['accession_id']}"] = True
+    with selection_button_cols[1]:
+        if st.button('Select none', use_container_width=True):
+            for dataset in study_context.datasets:
+                st.session_state[f"include_{dataset['accession_id']}"] = False
+
 for dataset in study_context.datasets:
     accession_id = dataset['accession_id']
-    with st.expander(f"{accession_id}: {dataset['title']}", expanded=False):
-        left_col, right_col = st.columns([1, 2], gap='large')
-        with left_col:
-            st.checkbox(
-                'Include in export',
-                key=f'include_{accession_id}',
-            )
-            st.text_input(
-                'Additional keywords',
-                key=f'keywords_{accession_id}',
-                help='Enter comma-separated or line-separated keywords to add for this dataset.',
-            )
-        with right_col:
-            st.markdown(f"**Release date**  \n`{dataset['released_date']}`")
-            st.markdown(f"**Description**  \n{dataset['description']}")
-            if global_keywords:
-                st.markdown(f"**Global keywords**  \n{', '.join(global_keywords)}")
+    local_keywords = parse_keywords(
+        cast(str, st.session_state.get(f'keywords_{accession_id}', ''))
+    )
+    effective_keywords = merge_keywords(global_keywords, local_keywords)
+    row_cols = st.columns([0.35, 9.65], gap='small')
+    with row_cols[0]:
+        st.checkbox(
+            'Include in export',
+            key=f'include_{accession_id}',
+            label_visibility='collapsed',
+        )
+    with row_cols[1]:
+        with st.expander(f"{accession_id}: {dataset['title']}", expanded=False):
+            left_col, right_col = st.columns([1, 2], gap='large')
+            with left_col:
+                st.text_input(
+                    'Additional keywords',
+                    key=f'keywords_{accession_id}',
+                    help='Enter comma-separated or line-separated keywords to add for this dataset.',
+                )
+            with right_col:
+                st.markdown(f"**Release date**  \n`{dataset['released_date']}`")
+                st.markdown(f"**Description**  \n{dataset['description']}")
+                if global_keywords:
+                    st.markdown(f"**Global keywords**  \n{', '.join(global_keywords)}")
+                st.markdown(
+                    '**Effective keywords**  \n'
+                    + (', '.join(effective_keywords) if effective_keywords else '_missing_')
+                )
 
 selected_accessions = collect_selected_accessions(study_context, st.session_state)
 dataset_keywords_by_accession = collect_dataset_keywords_by_accession(study_context, st.session_state)
