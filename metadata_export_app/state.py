@@ -9,6 +9,7 @@ import re
 from collections.abc import MutableMapping
 
 from metadata_export_core.core import (
+    DEFAULT_SITE_NAME,
     DEFAULT_SITEMAP_FILENAME,
     DEFAULT_SITE_BASE_URL,
     ExportProject,
@@ -46,6 +47,7 @@ def build_export_request_signature(
     study_id: str,
     creator_orgs: list[str],
     publisher_org: str | None,
+    site_name: str,
     site_base_url: str,
     sitemap_filename: str,
     sitemap_lastmod: str | None,
@@ -58,6 +60,7 @@ def build_export_request_signature(
             'study_id': study_id,
             'creator_orgs': creator_orgs,
             'publisher_org': publisher_org,
+            'site_name': site_name,
             'site_base_url': site_base_url,
             'sitemap_filename': sitemap_filename,
             'sitemap_lastmod': sitemap_lastmod,
@@ -76,6 +79,8 @@ def initialize_form_state_defaults(session_state: SessionStateMapping) -> None:
         session_state['publisher_org'] = None
     if 'global_keywords_raw' not in session_state:
         session_state['global_keywords_raw'] = ''
+    if 'site_name' not in session_state:
+        session_state['site_name'] = DEFAULT_SITE_NAME
     if 'site_base_url' not in session_state:
         session_state['site_base_url'] = DEFAULT_SITE_BASE_URL
     if 'sitemap_filename' not in session_state:
@@ -118,6 +123,7 @@ def restore_project_to_session_state(
     session_state['creator_orgs'] = project['creator_orgs']
     session_state['publisher_org'] = project['publisher_org']
     session_state['global_keywords_raw'] = ', '.join(project.get('global_keywords', []))
+    session_state['site_name'] = project.get('site_name', DEFAULT_SITE_NAME)
     session_state['site_base_url'] = project['site_base_url']
     session_state['sitemap_filename'] = project['sitemap_filename']
     sitemap_lastmod = project.get('sitemap_lastmod')
@@ -164,6 +170,7 @@ def build_preview_dataset_from_project(
         creator_orgs=project['creator_orgs'],
         publisher_org=project['publisher_org'],
         keywords=merge_keywords(project.get('global_keywords', []), project_dataset['keywords']),
+        site_name=project.get('site_name', DEFAULT_SITE_NAME),
         site_base_url=project['site_base_url'],
     )
 

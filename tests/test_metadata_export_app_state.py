@@ -71,6 +71,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             study_id='EGAS50000000906',
             creator_orgs=['UU'],
             publisher_org='LU',
+            site_name='FEGA Sweden',
             site_base_url='https://example.org',
             sitemap_filename='sitemap.xml',
             sitemap_lastmod=None,
@@ -82,6 +83,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             study_id='EGAS50000000906',
             creator_orgs=['UU'],
             publisher_org='LU',
+            site_name='NBIS Data Portal',
             site_base_url='https://example.org',
             sitemap_filename='sitemap.xml',
             sitemap_lastmod='2026-04-03',
@@ -119,6 +121,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
 
         self.assertEqual(session_state['creator_orgs'], [])
         self.assertEqual(session_state['global_keywords_raw'], '')
+        self.assertEqual(session_state['site_name'], 'FEGA Sweden')
         self.assertEqual(session_state['publisher_org'], 'LU')
         self.assertEqual(session_state['site_base_url'], 'https://example.org')
         self.assertEqual(session_state['sitemap_filename'], 'sitemap.xml')
@@ -129,6 +132,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         initialize_form_state_defaults(fresh_session_state)
         self.assertEqual(fresh_session_state['creator_orgs'], [])
         self.assertEqual(fresh_session_state['global_keywords_raw'], '')
+        self.assertEqual(fresh_session_state['site_name'], 'FEGA Sweden')
         self.assertIsNone(fresh_session_state['publisher_org'])
         self.assertFalse(fresh_session_state['use_sitemap_lastmod'])
         self.assertIsInstance(fresh_session_state['sitemap_lastmod_date'], date)
@@ -170,6 +174,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             creator_orgs=['UU', 'LU'],
             publisher_org='BTB',
             export_config=ExportConfig(
+                site_name='NBIS Data Portal',
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
                 sitemap_lastmod='2026-04-03',
@@ -194,6 +199,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(session_state['creator_orgs'], ['UU', 'LU'])
         self.assertEqual(session_state['publisher_org'], 'BTB')
         self.assertEqual(session_state['global_keywords_raw'], 'genomics')
+        self.assertEqual(session_state['site_name'], 'NBIS Data Portal')
         self.assertEqual(session_state['site_base_url'], 'https://example.org')
         self.assertEqual(session_state['sitemap_filename'], 'catalogue-sitemap.xml')
         self.assertTrue(session_state['use_sitemap_lastmod'])
@@ -217,6 +223,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             creator_orgs=['UU', 'LU'],
             publisher_org='BTB',
             export_config=ExportConfig(
+                site_name='NBIS Data Portal',
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
                 sitemap_lastmod='2026-04-03',
@@ -237,6 +244,8 @@ class MetadataExportAppStateTests(unittest.TestCase):
             preview_dataset['keywords'],
             ['genomics', 'reference cohort', 'whole genome'],
         )
+        self.assertEqual(preview_dataset['includedInDataCatalog']['name'], 'NBIS Data Portal')
+        self.assertEqual(preview_dataset['sdPublisher']['name'], 'NBIS Data Portal')
         self.assertEqual(preview_dataset['includedInDataCatalog']['url'], 'https://example.org')
 
     def test_collect_selected_accessions_and_missing_keywords_follow_dataset_order(self) -> None:

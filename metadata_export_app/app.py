@@ -17,6 +17,7 @@ if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from metadata_export_core.core import (
+    DEFAULT_SITE_NAME,
     DEFAULT_SITE_BASE_URL,
     DEFAULT_SITEMAP_FILENAME,
     EGAClient,
@@ -150,6 +151,11 @@ with settings_col:
         help='Dataset publisher. FEGA Sweden is intentionally excluded here.',
     )
     st.text_input(
+        'Site name',
+        key='site_name',
+        help='Used as the name for includedInDataCatalog and sdPublisher.',
+    )
+    st.text_input(
         'Site base URL',
         key='site_base_url',
     )
@@ -179,6 +185,7 @@ with settings_col:
 
 creator_orgs = cast(list[str], st.session_state.get('creator_orgs', []))
 publisher_org = cast(str | None, st.session_state.get('publisher_org'))
+site_name = cast(str, st.session_state.get('site_name', DEFAULT_SITE_NAME))
 site_base_url = cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL))
 sitemap_filename = cast(str, st.session_state.get('sitemap_filename', DEFAULT_SITEMAP_FILENAME))
 sitemap_lastmod = collect_sitemap_lastmod(st.session_state)
@@ -263,6 +270,7 @@ with action_col:
         study_id=cast(str, st.session_state.get('loaded_study_id', '')),
         creator_orgs=creator_orgs,
         publisher_org=publisher_org,
+        site_name=site_name.strip() or DEFAULT_SITE_NAME,
         site_base_url=site_base_url.rstrip('/'),
         sitemap_filename=sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
         sitemap_lastmod=sitemap_lastmod,
@@ -281,6 +289,7 @@ with action_col:
     elif generate_clicked:
         try:
             export_config = ExportConfig(
+                site_name=site_name.strip() or DEFAULT_SITE_NAME,
                 site_base_url=site_base_url.rstrip('/'),
                 sitemap_filename=sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
                 sitemap_lastmod=sitemap_lastmod,
