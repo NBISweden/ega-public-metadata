@@ -8,7 +8,7 @@ import re
 
 from collections.abc import MutableMapping
 
-from metadata_export_core.core import (
+from metadata_enrichment_core.core import (
     DEFAULT_SITE_NAME,
     DEFAULT_SITEMAP_FILENAME,
     DEFAULT_SITE_BASE_URL,

@@ -14,7 +14,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from metadata_export_core.core import (
+from metadata_enrichment_core.core import (
     DEFAULT_SITE_BASE_URL,
     DEFAULT_SITE_NAME,
     DEFAULT_SITEMAP_FILENAME,

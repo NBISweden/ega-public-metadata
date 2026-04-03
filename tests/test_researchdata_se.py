@@ -961,7 +961,7 @@ class ResearchDataExportTests(unittest.TestCase):
             ])
             stdout_buffer = io.StringIO()
 
-            with patch('metadata_export_core.core.EGAClient', return_value=fake_client):
+            with patch('metadata_enrichment_core.core.EGAClient', return_value=fake_client):
                 with redirect_stdout(stdout_buffer):
                     export_study_metadata(args)
 
@@ -1031,7 +1031,7 @@ class ResearchDataExportTests(unittest.TestCase):
                 dataset_payload=dataset_payload,
             )
 
-            with patch('metadata_export_core.core.EGAClient', return_value=fake_client):
+            with patch('metadata_enrichment_core.core.EGAClient', return_value=fake_client):
                 with redirect_stdout(stdout_buffer):
                     exit_code = main([
                         '--creator', 'UU',
@@ -1082,7 +1082,7 @@ class ResearchDataExportTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             stderr_buffer = io.StringIO()
-            with patch('metadata_export_core.core.EGAClient', return_value=fake_client):
+            with patch('metadata_enrichment_core.core.EGAClient', return_value=fake_client):
                 with redirect_stderr(stderr_buffer):
                     exit_code = main([
                         '--creator', 'UU',
