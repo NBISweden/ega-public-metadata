@@ -2,6 +2,11 @@
 
 Python code for interacting with the [EGA (European Genome-phenome Archive) public metadata API](https://ega-archive.org/discovery/metadata/public-metadata-api/). Code and examples are provided in a Jupyter notebook.
 
+The repository also contains export tooling for preparing metadata for Researchdata.se:
+
+* `metadata_export/researchdata_se.py` for the current CLI workflow
+* `metadata_export_app/app.py` for the new Streamlit-based workflow under development
+
 ## Prerequisites
 
 You need to have the following installed on your system:

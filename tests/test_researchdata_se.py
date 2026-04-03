@@ -2,6 +2,7 @@ import io
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+import zipfile
 
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -9,8 +10,12 @@ from unittest.mock import patch
 
 from metadata_export.researchdata_se import (
     EGAClient,
+    ExportConfig,
     ExportedDataset,
     MetadataValidationError,
+    StudyContext,
+    build_export_artifacts,
+    build_export_zip_bytes,
     build_sitemap_entries,
     compose_yaml_front_matter,
     export_study_metadata,
@@ -360,6 +365,65 @@ class ResearchDataExportTests(unittest.TestCase):
             'https://example.org/catalogue/datasets/EGAD2.html',
         ])
 
+    def test_build_export_artifacts_supports_dataset_specific_keywords(self) -> None:
+        study_context = StudyContext(
+            title='SweGen',
+            url='http://identifiers.org/ega.study:EGAS50000000906',
+            datasets=[
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'Dataset A',
+                    'released_date': '2024-01-02T10:00:00Z',
+                    'description': 'First dataset description.',
+                },
+                {
+                    'accession_id': 'EGAD50000001324',
+                    'title': 'Dataset B',
+                    'released_date': '2024-01-03T10:00:00Z',
+                    'description': 'Second dataset description.',
+                },
+            ],
+        )
+
+        artifacts = build_export_artifacts(
+            study_context=study_context,
+            creator_orgs=['UU', 'LU'],
+            publisher_org='BTB',
+            export_config=ExportConfig(
+                site_base_url='https://example.org',
+                sitemap_filename='catalogue-sitemap.xml',
+            ),
+            dataset_keywords_by_accession={
+                'EGAD50000001323': ['population genetics'],
+                'EGAD50000001324': ['reference cohort', 'whole genome'],
+            },
+            selected_accessions={'EGAD50000001323', 'EGAD50000001324'},
+        )
+
+        self.assertEqual(
+            [dataset_file.filename for dataset_file in artifacts.dataset_files],
+            ['EGAD50000001323.qmd', 'EGAD50000001324.qmd'],
+        )
+        self.assertIn(
+            'categories:\n  - "population genetics"',
+            artifacts.dataset_files[0].content,
+        )
+        self.assertIn(
+            'categories:\n  - "reference cohort"\n  - "whole genome"',
+            artifacts.dataset_files[1].content,
+        )
+        self.assertIn(
+            '<loc>https://example.org/catalogue/datasets/EGAD50000001323.html</loc>',
+            artifacts.sitemap_file.content,
+        )
+
+        zip_bytes = build_export_zip_bytes(artifacts)
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as archive:
+            self.assertEqual(
+                sorted(archive.namelist()),
+                ['EGAD50000001323.qmd', 'EGAD50000001324.qmd', 'catalogue-sitemap.xml'],
+            )
+
     def test_write_sitemap_file_writes_complete_document(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             sitemap_path = Path(tmp_dir) / 'sitemap.xml'
@@ -545,7 +609,7 @@ class ResearchDataExportTests(unittest.TestCase):
             ])
             stdout_buffer = io.StringIO()
 
-            with patch('metadata_export.researchdata_se.EGAClient', return_value=fake_client):
+            with patch('metadata_export_core.core.EGAClient', return_value=fake_client):
                 with redirect_stdout(stdout_buffer):
                     export_study_metadata(args)
 
@@ -588,7 +652,7 @@ class ResearchDataExportTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             stderr_buffer = io.StringIO()
-            with patch('metadata_export.researchdata_se.EGAClient', return_value=fake_client):
+            with patch('metadata_export_core.core.EGAClient', return_value=fake_client):
                 with redirect_stderr(stderr_buffer):
                     exit_code = main([
                         '--creator', 'UU',
