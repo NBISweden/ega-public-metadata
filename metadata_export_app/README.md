@@ -4,6 +4,8 @@ This folder contains a Streamlit app for interactively exporting FEGA Sweden met
 
 The app is intended to replace the existing CLI export workflow over time, but the CLI script in `metadata_export/researchdata_se.py` is still kept as a reference path while the app is being validated.
 
+This folder also contains `metadata_export_app/cli.py`, a command-line tool that uses the same project model and export core as the Streamlit app.
+
 ## Features
 
 -   Fetch a study and its datasets from the EGA public metadata API
@@ -42,6 +44,38 @@ From the repository root:
 
 ``` text
 streamlit run metadata_export_app/app.py
+```
+
+## CLI
+
+The app-style CLI supports two modes:
+
+-   `fetch`: fetch a study from EGA, enrich metadata from CLI options, and export files
+-   `project`: regenerate export files from a saved project snapshot JSON
+
+Example:
+
+``` text
+python3 metadata_export_app/cli.py fetch \
+  EGAS50000000906 \
+  tmp/app-cli-export \
+  --creator UU \
+  --creator LU \
+  --publisher BTB \
+  --global-keyword genomics \
+  --dataset-keyword EGAD50000001324="reference cohort" \
+  --site-name "FEGA Sweden" \
+  --site-base-url https://fega.nbis.se \
+  --project-file tmp/app-cli-export/project.json \
+  --zip-file tmp/app-cli-export/export.zip
+```
+
+To regenerate from a saved project snapshot:
+
+``` text
+python3 metadata_export_app/cli.py project \
+  tmp/app-cli-export/project.json \
+  tmp/app-cli-regenerated
 ```
 
 ## Validation status
