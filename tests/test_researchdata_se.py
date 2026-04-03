@@ -35,6 +35,7 @@ from metadata_export.researchdata_se import (
 
 
 SITEMAP_XMLNS = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+GOLDEN_EXPORT_DIR = Path(__file__).resolve().parent / 'fixtures' / 'golden_export'
 
 
 class FakeResponse:
@@ -493,6 +494,54 @@ class ResearchDataExportTests(unittest.TestCase):
             'categories:\n  - "reference cohort"',
             artifacts.dataset_files[0].content,
         )
+
+    def test_build_export_artifacts_matches_golden_output(self) -> None:
+        study_context = StudyContext(
+            title='SweGen',
+            url='http://identifiers.org/ega.study:EGAS50000000906',
+            datasets=[
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'Dataset A',
+                    'released_date': '2024-01-02T10:00:00Z',
+                    'description': 'First dataset description.',
+                },
+                {
+                    'accession_id': 'EGAD50000001324',
+                    'title': 'Dataset B',
+                    'released_date': '2024-01-03T10:00:00Z',
+                    'description': 'Second dataset description.',
+                },
+            ],
+        )
+
+        artifacts = build_export_artifacts(
+            study_context=study_context,
+            creator_orgs=['UU', 'LU'],
+            publisher_org='BTB',
+            export_config=ExportConfig(
+                site_base_url='https://example.org',
+                sitemap_filename='catalogue-sitemap.xml',
+            ),
+            dataset_keywords_by_accession={
+                'EGAD50000001323': ['population genetics'],
+                'EGAD50000001324': ['reference cohort', 'whole genome'],
+            },
+            selected_accessions={'EGAD50000001323', 'EGAD50000001324'},
+        )
+
+        actual_files = {
+            dataset_file.filename: dataset_file.content
+            for dataset_file in artifacts.dataset_files
+        }
+        actual_files[artifacts.sitemap_file.filename] = artifacts.sitemap_file.content
+        expected_files = {
+            fixture_path.name: fixture_path.read_text(encoding='utf-8')
+            for fixture_path in GOLDEN_EXPORT_DIR.iterdir()
+            if fixture_path.is_file()
+        }
+
+        self.assertEqual(actual_files, expected_files)
 
     def test_write_sitemap_file_writes_complete_document(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

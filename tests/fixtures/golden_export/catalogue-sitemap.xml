@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.org/catalogue/datasets/EGAD50000001323.html</loc>
+    <lastmod>2024-01-02</lastmod>
+  </url>
+  <url>
+    <loc>https://example.org/catalogue/datasets/EGAD50000001324.html</loc>
+    <lastmod>2024-01-03</lastmod>
+  </url>
+</urlset>

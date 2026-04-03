@@ -1,0 +1,73 @@
+---
+title: "Dataset B"
+author:
+  - "Uppsala University"
+  - "Lund University"
+date: "2024-01-03"
+description: Dataset
+categories:
+  - "reference cohort"
+  - "whole genome"
+format:
+  html:
+    include-in-header:
+      text: |
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Dataset",
+          "identifier": "http://identifiers.org/ega.dataset:EGAD50000001324",
+          "name": "Dataset B",
+          "publisher": {
+            "@type": "Organization",
+            "name": "The Swedish Childhood Tumor Biobank"
+          },
+          "includedInDataCatalog": {
+            "@type": "DataCatalog",
+            "@id": "https://example.org",
+            "name": "FEGA Sweden",
+            "url": "https://example.org"
+          },
+          "sdPublisher": {
+            "@type": "Organization",
+            "name": "FEGA Sweden",
+            "url": "https://example.org"
+          },
+          "datePublished": "2024-01-03",
+          "description": "Second dataset description.\n\nThis dataset is one of 2 datasets included in the study SweGen (http://identifiers.org/ega.study:EGAS50000000906).",
+          "inLanguage": [
+            {
+              "@type": "Language",
+              "identifier": "en",
+              "name": "English"
+            }
+          ],
+          "isPartOf": {
+            "@id": "http://identifiers.org/ega.study:EGAS50000000906",
+            "name": "SweGen"
+          },
+          "creator": [
+            {
+              "@type": "Organization",
+              "@id": "https://ror.org/048a87296",
+              "name": "Uppsala University"
+            },
+            {
+              "@type": "Organization",
+              "@id": "https://ror.org/012a77v79",
+              "name": "Lund University"
+            }
+          ],
+          "keywords": [
+            "reference cohort",
+            "whole genome"
+          ]
+        }
+        </script>
+---
+Second dataset description.
+
+This dataset is one of 2 datasets included in the study SweGen (http://identifiers.org/ega.study:EGAS50000000906).
+
+**Official landing page:**
+<http://identifiers.org/ega.dataset:EGAD50000001324>
