@@ -1,4 +1,4 @@
-"""Streamlit UI for FEGA Sweden metadata export."""
+"""Streamlit UI for FEGA Sweden Metadata Enrichment."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ from metadata_export_app.state import (
 
 
 st.set_page_config(
-    page_title='FEGA Sweden Metadata Export',
+    page_title='FEGA Sweden Metadata Enrichment',
     page_icon=':material/data_object:',
     layout='wide',
 )
@@ -69,9 +69,9 @@ def load_study_context(study_id: str) -> StudyContext:
         return fetch_study_context(client, study_id.strip())
 
 
-st.title('FEGA Sweden Metadata Export')
+st.title('FEGA Sweden Metadata Enrichment')
 st.caption(
-    'Create metadata exports for Researchdata.se from public EGA study metadata.'
+    'Enrich public EGA study metadata and generate Researchdata.se export files.'
 )
 
 st.markdown(
