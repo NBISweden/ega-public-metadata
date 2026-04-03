@@ -59,5 +59,6 @@ The test suite currently includes:
 -   CLI/core parity tests for the same export input
 -   golden-output fixtures under `tests/fixtures/golden_export/`
 -   project snapshot roundtrip tests
+-   app state and validation tests for publisher selection, dataset selection, and required keywords
 
 If you intentionally change the export format, update the affected fixture files in `tests/fixtures/golden_export/` so that they match the new expected output, then rerun the test suite and review the diff before committing.

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 
 from pathlib import Path
@@ -21,7 +20,6 @@ from metadata_export_core.core import (
     DEFAULT_SITEMAP_FILENAME,
     EGAClient,
     ExportConfig,
-    ExportProject,
     MetadataValidationError,
     ORGANISATIONS,
     PUBLISHER_ORGANISATIONS,
@@ -36,6 +34,16 @@ from metadata_export_core.core import (
     transform_ega_dataset,
     write_export_artifacts,
 )
+from metadata_export_app.state import (
+    collect_dataset_keywords_by_accession,
+    collect_selected_accessions,
+    find_selected_accessions_missing_keywords,
+    get_export_validation_message,
+    get_publisher_select_index,
+    initialize_dataset_state,
+    parse_keywords,
+    restore_project_to_session_state,
+)
 
 
 st.set_page_config(
@@ -43,61 +51,10 @@ st.set_page_config(
     page_icon=':material/data_object:',
     layout='wide',
 )
-
-
-def parse_keywords(raw_value: str) -> list[str]:
-    return [
-        keyword
-        for keyword in (
-            part.strip()
-            for part in re.split(r'[\n,]', raw_value)
-        )
-        if keyword
-    ]
-
-
 @st.cache_data(show_spinner=False)
 def load_study_context(study_id: str) -> StudyContext:
     with EGAClient() as client:
         return fetch_study_context(client, study_id.strip())
-
-
-def initialize_dataset_state(study_context: StudyContext) -> None:
-    for dataset in study_context.datasets:
-        accession_id = dataset['accession_id']
-        include_key = f'include_{accession_id}'
-        keywords_key = f'keywords_{accession_id}'
-        if include_key not in st.session_state:
-            st.session_state[include_key] = True
-        if keywords_key not in st.session_state:
-            st.session_state[keywords_key] = ''
-
-
-def restore_project_to_session(project: ExportProject) -> None:
-    study_context = project['study_context']
-    st.session_state['study_context'] = study_context
-    st.session_state['loaded_study_id'] = project['study_id']
-    st.session_state['creator_orgs'] = project['creator_orgs']
-    st.session_state['publisher_org'] = project['publisher_org']
-    st.session_state['site_base_url'] = project['site_base_url']
-    st.session_state['sitemap_filename'] = project['sitemap_filename']
-    st.session_state.pop('artifacts', None)
-    st.session_state.pop('project_json', None)
-    st.session_state.pop('project', None)
-    initialize_dataset_state(study_context)
-    dataset_state = {
-        dataset['accession_id']: dataset
-        for dataset in project['datasets']
-    }
-    for dataset in study_context.datasets:
-        accession_id = dataset['accession_id']
-        project_dataset = dataset_state.get(accession_id)
-        if project_dataset is None:
-            st.session_state[f'include_{accession_id}'] = False
-            st.session_state[f'keywords_{accession_id}'] = ''
-            continue
-        st.session_state[f'include_{accession_id}'] = project_dataset['include']
-        st.session_state[f'keywords_{accession_id}'] = ', '.join(project_dataset['keywords'])
 
 
 def build_preview_dataset(
@@ -145,7 +102,7 @@ uploaded_project = st.file_uploader(
 if uploaded_project is not None:
     try:
         project = deserialize_export_project(uploaded_project.getvalue().decode('utf-8'))
-        restore_project_to_session(project)
+        restore_project_to_session_state(project, st.session_state)
         st.success(f'Loaded project for study {project["study_id"]}.')
     except (UnicodeDecodeError, MetadataValidationError, json.JSONDecodeError) as exc:
         st.error(f'Failed to load project file: {exc}')
@@ -174,7 +131,7 @@ if study_context is None:
     st.info('Fetch an EGA study to start editing metadata.')
     st.stop()
 
-initialize_dataset_state(study_context)
+initialize_dataset_state(study_context, st.session_state)
 
 summary_col, settings_col = st.columns([1, 2], gap='large')
 
@@ -196,13 +153,10 @@ with settings_col:
     st.session_state['creator_orgs'] = creator_orgs
 
     publisher_default = cast(str | None, st.session_state.get('publisher_org'))
-    publisher_index = None
-    if publisher_default in PUBLISHER_ORGANISATIONS:
-        publisher_index = list(PUBLISHER_ORGANISATIONS).index(publisher_default)
     publisher_org = st.selectbox(
         'Publisher',
         options=list(PUBLISHER_ORGANISATIONS),
-        index=publisher_index,
+        index=get_publisher_select_index(publisher_default),
         placeholder='Choose a publisher',
         help='Dataset publisher. FEGA Sweden is intentionally excluded here.',
     )
@@ -245,39 +199,26 @@ for dataset in study_context.datasets:
             st.markdown(f"**Release date**  \n`{dataset['released_date']}`")
             st.markdown(f"**Description**  \n{dataset['description']}")
 
-selected_accessions = {
-    dataset['accession_id']
-    for dataset in study_context.datasets
-    if cast(bool, st.session_state.get(f"include_{dataset['accession_id']}", False))
-}
-dataset_keywords_by_accession = {
-    dataset['accession_id']: parse_keywords(
-        cast(str, st.session_state.get(f"keywords_{dataset['accession_id']}", ''))
-    )
-    for dataset in study_context.datasets
-}
-selected_accessions_missing_keywords = [
-    dataset['accession_id']
-    for dataset in study_context.datasets
-    if dataset['accession_id'] in selected_accessions
-    and not dataset_keywords_by_accession[dataset['accession_id']]
-]
+selected_accessions = collect_selected_accessions(study_context, st.session_state)
+dataset_keywords_by_accession = collect_dataset_keywords_by_accession(study_context, st.session_state)
+selected_accessions_missing_keywords = find_selected_accessions_missing_keywords(
+    study_context,
+    selected_accessions,
+    dataset_keywords_by_accession,
+)
 
 preview_col, action_col = st.columns([2, 1], gap='large')
 
 with action_col:
     st.subheader('Generate Export')
-    if not creator_orgs:
-        st.warning('Select at least one creator before generating export files.')
-    elif not publisher_org:
-        st.warning('Select a publisher before generating export files.')
-    elif not selected_accessions:
-        st.warning('Select at least one dataset to include in the export.')
-    elif selected_accessions_missing_keywords:
-        st.warning(
-            'Add at least one keyword for every selected dataset before generating export files. '
-            f'Missing keywords for: {", ".join(selected_accessions_missing_keywords)}.'
-        )
+    validation_message = get_export_validation_message(
+        creator_orgs=creator_orgs,
+        publisher_org=publisher_org,
+        selected_accessions=selected_accessions,
+        selected_accessions_missing_keywords=selected_accessions_missing_keywords,
+    )
+    if validation_message is not None:
+        st.warning(validation_message)
     else:
         try:
             export_config = ExportConfig(
