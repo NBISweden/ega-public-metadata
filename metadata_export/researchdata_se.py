@@ -31,6 +31,9 @@ ORGANISATIONS = {
     'UU': {'@type': 'Organization', '@id': 'https://ror.org/048a87296', 'name': 'Uppsala University'},
     'BTB': {'@type': 'Organization', '@id': None, 'name': 'The Swedish Childhood Tumor Biobank'},
 }
+PUBLISHER_ORGANISATIONS = tuple(
+    organisation_key for organisation_key in ORGANISATIONS if organisation_key != 'FEGA-SE'
+)
 
 
 Organisation = TypedDict(
@@ -277,7 +280,7 @@ def parse_args(args: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         '--publisher',
-        choices=ORGANISATIONS.keys(),
+        choices=PUBLISHER_ORGANISATIONS,
         required=True,
         help='organisation responsible for publishing the dataset metadata record',
     )
@@ -544,6 +547,10 @@ def normalize_ega_dataset_metadata(
     if publisher_org is None:
         raise MetadataValidationError(
             'publisher must be specified for Researchdata.se export'
+        )
+    if publisher_org == 'FEGA-SE':
+        raise MetadataValidationError(
+            'FEGA-SE cannot be used as publisher for Researchdata.se export'
         )
     publisher = build_organisation(cast(str, publisher_org))
     normalized_keywords = list(keywords or [])

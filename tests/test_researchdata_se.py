@@ -129,6 +129,15 @@ class ResearchDataExportTests(unittest.TestCase):
                 'tmp',
             ])
 
+    def test_parse_args_rejects_fega_se_as_publisher(self) -> None:
+        with self.assertRaises(SystemExit):
+            parse_args([
+                '--creator', 'FEGA-SE',
+                '--publisher', 'FEGA-SE',
+                'EGAS50000000906',
+                'tmp',
+            ])
+
     def test_transform_ega_dataset_builds_expected_schema_org_payload(self) -> None:
         ega_dataset = {
             'accession_id': 'EGAD50000001323',
@@ -224,6 +233,25 @@ class ResearchDataExportTests(unittest.TestCase):
                 num_datasets=1,
                 study_title='SweGen',
                 study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            )
+
+    def test_transform_ega_dataset_rejects_fega_se_as_publisher(self) -> None:
+        with self.assertRaisesRegex(
+            MetadataValidationError,
+            'FEGA-SE cannot be used as publisher for Researchdata.se export',
+        ):
+            transform_ega_dataset(
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'SweGen reference dataset',
+                    'released_date': '2024-01-02T03:04:05Z',
+                    'description': 'Population-scale whole genome variation.',
+                },
+                num_datasets=1,
+                study_title='SweGen',
+                study_url='http://identifiers.org/ega.study:EGAS50000000906',
+                creator_org='FEGA-SE',
+                publisher_org='FEGA-SE',
             )
 
     def test_transform_ega_dataset_uses_export_site_base_url_for_fega_roles(self) -> None:

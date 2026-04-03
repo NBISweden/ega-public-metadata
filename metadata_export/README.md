@@ -30,7 +30,7 @@ python3 -m pip install requests
 ``` text
 ./researchdata_se.py -h
 usage: researchdata [-h] [-V] --creator {FEGA-SE,LiU,LU,UU,BTB}
-                    --publisher {FEGA-SE,LiU,LU,UU,BTB}
+                    --publisher {LiU,LU,UU,BTB}
                     [--keyword KEYWORD] [--site-base-url SITE_BASE_URL]
                     [--sitemap-filename SITEMAP_FILENAME]
                     study_id output_dir
@@ -46,7 +46,7 @@ options:
   -V, --version         show program's version number and exit
   --creator {FEGA-SE,LiU,LU,UU,BTB}
                         main organisation that collected the data
-  --publisher {FEGA-SE,LiU,LU,UU,BTB}
+  --publisher {LiU,LU,UU,BTB}
                         organisation responsible for publishing the dataset metadata record
   --keyword KEYWORD     keyword describing the dataset; repeat the option for multiple keywords
   --site-base-url SITE_BASE_URL
@@ -103,7 +103,7 @@ The export now models FEGA Sweden in two explicit supporting roles in addition t
 | Catalog exposing the dataset | `includedInDataCatalog` | `FEGA Sweden` |
 | Publisher of the structured metadata | `sdPublisher` | `FEGA Sweden` |
 
-This means FEGA Sweden no longer needs to carry the full meaning of `publisher` when a responsible organisation is known. FEGA still remains explicit as the catalog exposing the dataset and as publisher of the structured metadata.
+This means FEGA Sweden no longer needs to carry the full meaning of `publisher` when a responsible organisation is known. FEGA Sweden remains explicit as the catalog exposing the dataset and as publisher of the structured metadata, but is not used as dataset `publisher`.
 
 ### EGA to schema.org mapping
 
@@ -115,7 +115,7 @@ The generated `.qmd` files embed a `schema.org` JSON-LD `Dataset` payload in the
 | `@type` | FEGA Sweden-managed | hard-coded in script | always `Dataset` |
 | `identifier` | derived | `dataset.accession_id` | converted to `http://identifiers.org/ega.dataset:{accession_id}` |
 | `name` | EGA source | `dataset.title` | trimmed and emitted as dataset title |
-| `publisher` | FEGA Sweden enrichment | `--publisher` CLI option | required for Researchdata.se export |
+| `publisher` | FEGA Sweden enrichment | `--publisher` CLI option | required for Researchdata.se export; FEGA Sweden is not an allowed value |
 | `includedInDataCatalog` | FEGA Sweden-managed | export site base URL | emitted as a `DataCatalog` for `FEGA Sweden` |
 | `sdPublisher` | FEGA Sweden-managed | export site base URL | emitted as `FEGA Sweden` as publisher of the structured metadata |
 | `datePublished` | derived from EGA source | `dataset.released_date` | parsed from ISO timestamp and normalized to `YYYY-MM-DD` |
@@ -137,6 +137,7 @@ Notes:
 -   `creator` and `publisher` can now be set independently on the command line.
 -   `--creator` is required because Researchdata.se treats `creator` as mandatory.
 -   `--publisher` is required because Researchdata.se treats `publisher` as mandatory.
+-   `FEGA-SE` can be used as `creator`, but not as `publisher`.
 -   If this mapping grows beyond a dozen rows or starts needing rationale per field, move it to a dedicated section or a separate mapping document and keep a short summary here.
 
 ### Notes
