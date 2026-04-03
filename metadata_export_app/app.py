@@ -195,13 +195,15 @@ with settings_col:
     )
     st.session_state['creator_orgs'] = creator_orgs
 
-    publisher_default = cast(str, st.session_state.get('publisher_org', PUBLISHER_ORGANISATIONS[0]))
-    if publisher_default not in PUBLISHER_ORGANISATIONS:
-        publisher_default = PUBLISHER_ORGANISATIONS[0]
+    publisher_default = cast(str | None, st.session_state.get('publisher_org'))
+    publisher_index = None
+    if publisher_default in PUBLISHER_ORGANISATIONS:
+        publisher_index = list(PUBLISHER_ORGANISATIONS).index(publisher_default)
     publisher_org = st.selectbox(
         'Publisher',
         options=list(PUBLISHER_ORGANISATIONS),
-        index=list(PUBLISHER_ORGANISATIONS).index(publisher_default),
+        index=publisher_index,
+        placeholder='Choose a publisher',
         help='Dataset publisher. FEGA Sweden is intentionally excluded here.',
     )
     st.session_state['publisher_org'] = publisher_org
@@ -267,6 +269,8 @@ with action_col:
     st.subheader('Generate Export')
     if not creator_orgs:
         st.warning('Select at least one creator before generating export files.')
+    elif not publisher_org:
+        st.warning('Select a publisher before generating export files.')
     elif not selected_accessions:
         st.warning('Select at least one dataset to include in the export.')
     elif selected_accessions_missing_keywords:
