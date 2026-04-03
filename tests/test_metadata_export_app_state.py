@@ -13,6 +13,7 @@ from metadata_export_app.state import (
     collect_selected_accessions,
     find_selected_accessions_missing_keywords,
     get_export_validation_message,
+    get_organisation_display_name,
     get_publisher_select_index,
     initialize_dataset_state,
     initialize_form_state_defaults,
@@ -57,6 +58,10 @@ class MetadataExportAppStateTests(unittest.TestCase):
             build_project_filename('EGAS50000000906'),
             'fega-sweden-metadata-project-EGAS50000000906.json',
         )
+
+    def test_get_organisation_display_name_returns_human_readable_name(self) -> None:
+        self.assertEqual(get_organisation_display_name('UU'), 'Uppsala University')
+        self.assertEqual(get_organisation_display_name('BTB'), 'The Swedish Childhood Tumor Biobank')
 
     def test_build_export_request_signature_changes_when_export_inputs_change(self) -> None:
         base_signature = build_export_request_signature(

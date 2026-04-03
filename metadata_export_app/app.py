@@ -46,6 +46,7 @@ from metadata_export_app.state import (
     collect_selected_accessions,
     find_selected_accessions_missing_keywords,
     get_export_validation_message,
+    get_organisation_display_name,
     get_publisher_select_index,
     initialize_dataset_state,
     initialize_form_state_defaults,
@@ -134,6 +135,7 @@ with settings_col:
         'Creators',
         options=list(ORGANISATIONS.keys()),
         key='creator_orgs',
+        format_func=get_organisation_display_name,
         help='Select one or more organisations that created or collected the data.',
     )
     st.selectbox(
@@ -142,6 +144,7 @@ with settings_col:
         index=get_publisher_select_index(cast(str | None, st.session_state.get('publisher_org'))),
         placeholder='Choose a publisher',
         key='publisher_org',
+        format_func=get_organisation_display_name,
         help='Dataset publisher. FEGA Sweden is intentionally excluded here.',
     )
     st.text_input(

@@ -11,6 +11,7 @@ from metadata_export_core.core import (
     DEFAULT_SITEMAP_FILENAME,
     DEFAULT_SITE_BASE_URL,
     ExportProject,
+    ORGANISATIONS,
     PUBLISHER_ORGANISATIONS,
     StudyContext,
     merge_keywords,
@@ -27,6 +28,10 @@ def build_export_archive_filename(study_id: str) -> str:
 
 def build_project_filename(study_id: str) -> str:
     return f'fega-sweden-metadata-project-{study_id}.json'
+
+
+def get_organisation_display_name(organisation_key: str) -> str:
+    return str(ORGANISATIONS[organisation_key]['name'])
 
 
 def clear_generated_export_state(session_state: SessionStateMapping) -> None:
