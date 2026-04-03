@@ -25,7 +25,6 @@ SITEMAP_XMLNS = 'http://www.sitemaps.org/schemas/sitemap/0.9'
 
 
 ORGANISATIONS = {
-    'unspecified': {'@type': None, '@id': None, 'name': None},
     'FEGA-SE': {'@type': 'Organization', '@id': None, 'name': 'FEGA Sweden'},
     'LiU': {'@type': 'Organization', '@id': 'https://ror.org/05ynxx418', 'name': 'Linköping University'},
     'LU': {'@type': 'Organization', '@id': 'https://ror.org/012a77v79', 'name': 'Lund University'},
@@ -271,10 +270,15 @@ def parse_args(args: list[str]) -> argparse.Namespace:
     parser.add_argument(
         '-V', '--version', action='version', version='%(prog)s ' + __version__)
     parser.add_argument(
-        '--creator', choices=ORGANISATIONS.keys(), help='main organisation that collected the data')
+        '--creator',
+        choices=ORGANISATIONS.keys(),
+        required=True,
+        help='main organisation that collected the data',
+    )
     parser.add_argument(
         '--publisher',
         choices=ORGANISATIONS.keys(),
+        required=True,
         help='organisation responsible for publishing the dataset metadata record',
     )
     parser.add_argument(
@@ -535,11 +539,13 @@ def normalize_ega_dataset_metadata(
     site_base_url: str = DEFAULT_SITE_BASE_URL,
 ) -> NormalizedDatasetMetadata:
     creator = None
-    publisher = build_organisation('FEGA-SE')
-    if creator_org not in (None, 'unspecified'):
+    if creator_org is not None:
         creator = build_organisation(creator_org)
-    if publisher_org not in (None, 'unspecified'):
-        publisher = build_organisation(publisher_org)
+    if publisher_org is None:
+        raise MetadataValidationError(
+            'publisher must be specified for Researchdata.se export'
+        )
+    publisher = build_organisation(cast(str, publisher_org))
     normalized_keywords = list(keywords or [])
 
     return NormalizedDatasetMetadata(

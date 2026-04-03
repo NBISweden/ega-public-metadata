@@ -114,6 +114,21 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(args.study_id, 'EGAS50000000906')
         self.assertEqual(args.output_dir, 'tmp')
 
+    def test_parse_args_requires_creator(self) -> None:
+        with self.assertRaises(SystemExit):
+            parse_args([
+                'EGAS50000000906',
+                'tmp',
+            ])
+
+    def test_parse_args_requires_publisher(self) -> None:
+        with self.assertRaises(SystemExit):
+            parse_args([
+                '--creator', 'UU',
+                'EGAS50000000906',
+                'tmp',
+            ])
+
     def test_transform_ega_dataset_builds_expected_schema_org_payload(self) -> None:
         ega_dataset = {
             'accession_id': 'EGAD50000001323',
@@ -176,7 +191,7 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(normalized.keywords, ['genomics', 'reference dataset'])
         self.assertIn('This dataset is one of 2 datasets', normalized.description)
 
-    def test_transform_ega_dataset_allows_publisher_without_creator(self) -> None:
+    def test_transform_ega_dataset_allows_publisher_without_creator_in_isolation(self) -> None:
         dataset = transform_ega_dataset(
             {
                 'accession_id': 'EGAD50000001323',
@@ -194,6 +209,23 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(dataset['publisher']['@id'], 'https://ror.org/048a87296')
         self.assertNotIn('creator', dataset)
 
+    def test_transform_ega_dataset_requires_publisher_in_isolation(self) -> None:
+        with self.assertRaisesRegex(
+            MetadataValidationError,
+            'publisher must be specified for Researchdata.se export',
+        ):
+            transform_ega_dataset(
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'SweGen reference dataset',
+                    'released_date': '2024-01-02T03:04:05Z',
+                    'description': 'Population-scale whole genome variation.',
+                },
+                num_datasets=1,
+                study_title='SweGen',
+                study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            )
+
     def test_transform_ega_dataset_uses_export_site_base_url_for_fega_roles(self) -> None:
         dataset = transform_ega_dataset(
             {
@@ -205,14 +237,15 @@ class ResearchDataExportTests(unittest.TestCase):
             num_datasets=1,
             study_title='SweGen',
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            publisher_org='UU',
             site_base_url='https://example.org',
         )
 
         self.assertEqual(dataset['includedInDataCatalog']['@id'], 'https://example.org')
         self.assertEqual(dataset['includedInDataCatalog']['url'], 'https://example.org')
         self.assertEqual(dataset['sdPublisher']['url'], 'https://example.org')
-        self.assertEqual(dataset['publisher']['name'], 'FEGA Sweden')
-        self.assertNotIn('@id', dataset['publisher'])
+        self.assertEqual(dataset['publisher']['name'], 'Uppsala University')
+        self.assertEqual(dataset['publisher']['@id'], 'https://ror.org/048a87296')
 
     def test_transform_ega_dataset_omits_null_organisation_fields(self) -> None:
         dataset = transform_ega_dataset(
@@ -247,6 +280,7 @@ class ResearchDataExportTests(unittest.TestCase):
             num_datasets=1,
             study_title='Study Alpha',
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            publisher_org='UU',
         )
         front_matter = compose_yaml_front_matter(dataset)
 
@@ -421,6 +455,7 @@ class ResearchDataExportTests(unittest.TestCase):
                 num_datasets=1,
                 study_title='Study Alpha',
                 study_url='http://identifiers.org/ega.study:EGAS50000000906',
+                publisher_org='UU',
             )
 
     def test_export_study_metadata_writes_dataset_files_and_sitemap_with_mocked_client(self) -> None:
@@ -448,6 +483,7 @@ class ResearchDataExportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             args = parse_args([
                 '--creator', 'UU',
+                '--publisher', 'LU',
                 '--keyword', 'genomics',
                 '--site-base-url', 'https://example.org',
                 '--sitemap-filename', 'catalogue-sitemap.xml',
@@ -501,7 +537,12 @@ class ResearchDataExportTests(unittest.TestCase):
             stderr_buffer = io.StringIO()
             with patch('metadata_export.researchdata_se.EGAClient', return_value=fake_client):
                 with redirect_stderr(stderr_buffer):
-                    exit_code = main(['EGAS50000000906', tmp_dir])
+                    exit_code = main([
+                        '--creator', 'UU',
+                        '--publisher', 'LU',
+                        'EGAS50000000906',
+                        tmp_dir,
+                    ])
 
             self.assertEqual(exit_code, 1)
             self.assertIn(
