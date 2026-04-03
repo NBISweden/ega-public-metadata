@@ -7,7 +7,7 @@ The repository also contains export tooling for preparing metadata for Researchd
 * `metadata_export/researchdata_se.py` for the current CLI workflow
 * `metadata_enrichment_app/app.py` for the new Streamlit-based workflow under development
 
-During the transition, the CLI script is kept as a reference implementation while the Streamlit app is being validated against the same shared export core and regression tests.
+During the transition, the CLI script is kept as a reference implementation while the Streamlit app is being validated against the same shared enrichment core and regression tests.
 
 ## Prerequisites
 
