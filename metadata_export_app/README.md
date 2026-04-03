@@ -16,7 +16,6 @@ The app is intended to replace the existing CLI export workflow over time, but t
 -   Preview generated `qmd` and `schema.org` JSON-LD
 -   Download an individual generated dataset file or the sitemap directly from the preview
 -   Download a zip archive containing dataset files, sitemap, and the saved project JSON, with study ID in the filename
--   Write the currently selected export directly to a local output directory
 
 ## Prerequisites
 

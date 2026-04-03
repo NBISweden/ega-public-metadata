@@ -30,11 +30,9 @@ from metadata_export_core.core import (
     build_export_project,
     build_export_zip_bytes,
     deserialize_export_project,
-    ensure_output_dir,
     fetch_study_context,
     merge_keywords,
     serialize_export_project,
-    write_export_artifacts,
 )
 from metadata_export_app.state import (
     build_export_archive_filename,
@@ -151,11 +149,6 @@ with settings_col:
         'Sitemap filename',
         key='sitemap_filename',
     )
-    st.text_input(
-        'Output directory',
-        key='output_dir',
-        help='Optional local export path for writing generated files directly to disk.',
-    )
     st.text_area(
         'Global keywords',
         key='global_keywords_raw',
@@ -166,7 +159,6 @@ creator_orgs = cast(list[str], st.session_state.get('creator_orgs', []))
 publisher_org = cast(str | None, st.session_state.get('publisher_org'))
 site_base_url = cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL))
 sitemap_filename = cast(str, st.session_state.get('sitemap_filename', DEFAULT_SITEMAP_FILENAME))
-output_dir = cast(str, st.session_state.get('output_dir', 'tmp/streamlit-export'))
 global_keywords = collect_global_keywords(st.session_state)
 
 st.subheader('Dataset-Level Metadata')
@@ -296,26 +288,6 @@ with action_col:
             )
         except MetadataValidationError as exc:
             st.error(f'Metadata validation failed: {exc}')
-
-    artifacts = st.session_state.get('artifacts')
-    if artifacts:
-        st.divider()
-        st.subheader('Write to Disk')
-        st.caption(
-            'Writes the currently prepared export to the selected local directory. '
-            'Only the currently included datasets are written.'
-        )
-        if st.button('Write Export to Output Directory', use_container_width=True):
-            output_dir_value = cast(str, st.session_state.get('output_dir', '')).strip()
-            if not output_dir_value:
-                st.error('Enter an output directory before writing files to disk.')
-            else:
-                try:
-                    output_path = ensure_output_dir(output_dir_value)
-                    write_export_artifacts(output_path, artifacts)
-                    st.success(f'Wrote export files to {output_path}')
-                except OSError as exc:
-                    st.error(f'Failed to write export files: {exc}')
 
 with preview_col:
     st.subheader('Preview')
