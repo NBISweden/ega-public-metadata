@@ -2,7 +2,10 @@ import unittest
 
 from metadata_export.researchdata_se import ExportConfig, StudyContext, build_export_project
 from metadata_export_app.state import (
+    build_preview_dataset_from_project,
+    collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
+    collect_global_keywords,
     collect_selected_accessions,
     find_selected_accessions_missing_keywords,
     get_export_validation_message,
@@ -50,6 +53,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         initialize_form_state_defaults(session_state)
 
         self.assertEqual(session_state['creator_orgs'], [])
+        self.assertEqual(session_state['global_keywords_raw'], '')
         self.assertEqual(session_state['publisher_org'], 'LU')
         self.assertEqual(session_state['site_base_url'], 'https://example.org')
         self.assertEqual(session_state['sitemap_filename'], 'sitemap.xml')
@@ -58,7 +62,16 @@ class MetadataExportAppStateTests(unittest.TestCase):
         fresh_session_state = {}
         initialize_form_state_defaults(fresh_session_state)
         self.assertEqual(fresh_session_state['creator_orgs'], [])
+        self.assertEqual(fresh_session_state['global_keywords_raw'], '')
         self.assertIsNone(fresh_session_state['publisher_org'])
+
+    def test_collect_global_keywords_parses_shared_keywords(self) -> None:
+        session_state = {'global_keywords_raw': 'genomics\nwhole genome, population genetics'}
+
+        self.assertEqual(
+            collect_global_keywords(session_state),
+            ['genomics', 'whole genome', 'population genetics'],
+        )
 
     def test_initialize_dataset_state_sets_defaults_without_overwriting_existing_values(self) -> None:
         session_state = {
@@ -83,6 +96,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
             ),
+            global_keywords=['genomics'],
             dataset_keywords_by_accession={
                 'EGAD50000001323': ['population genetics'],
                 'EGAD50000001324': ['reference cohort', 'whole genome'],
@@ -100,6 +114,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(session_state['loaded_study_id'], 'EGAS50000000906')
         self.assertEqual(session_state['creator_orgs'], ['UU', 'LU'])
         self.assertEqual(session_state['publisher_org'], 'BTB')
+        self.assertEqual(session_state['global_keywords_raw'], 'genomics')
         self.assertEqual(session_state['site_base_url'], 'https://example.org')
         self.assertEqual(session_state['sitemap_filename'], 'catalogue-sitemap.xml')
         self.assertEqual(session_state['include_EGAD50000001323'], False)
@@ -113,6 +128,34 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertNotIn('project_json', session_state)
         self.assertNotIn('project', session_state)
 
+    def test_build_preview_dataset_from_project_uses_project_snapshot(self) -> None:
+        project = build_export_project(
+            study_id='EGAS50000000906',
+            study_context=self.study_context,
+            creator_orgs=['UU', 'LU'],
+            publisher_org='BTB',
+            export_config=ExportConfig(
+                site_base_url='https://example.org',
+                sitemap_filename='catalogue-sitemap.xml',
+            ),
+            global_keywords=['genomics'],
+            dataset_keywords_by_accession={
+                'EGAD50000001323': ['population genetics'],
+                'EGAD50000001324': ['reference cohort', 'whole genome'],
+            },
+            selected_accessions={'EGAD50000001324'},
+        )
+
+        preview_dataset = build_preview_dataset_from_project(project, 'EGAD50000001324')
+
+        self.assertEqual(preview_dataset['name'], 'Dataset B')
+        self.assertEqual(preview_dataset['publisher']['name'], 'The Swedish Childhood Tumor Biobank')
+        self.assertEqual(
+            preview_dataset['keywords'],
+            ['genomics', 'reference cohort', 'whole genome'],
+        )
+        self.assertEqual(preview_dataset['includedInDataCatalog']['url'], 'https://example.org')
+
     def test_collect_selected_accessions_and_missing_keywords_follow_dataset_order(self) -> None:
         session_state = {
             'include_EGAD50000001323': True,
@@ -122,14 +165,20 @@ class MetadataExportAppStateTests(unittest.TestCase):
         }
 
         selected_accessions = collect_selected_accessions(self.study_context, session_state)
+        global_keywords = ['genomics']
         dataset_keywords_by_accession = collect_dataset_keywords_by_accession(
             self.study_context,
             session_state,
         )
+        effective_dataset_keywords_by_accession = collect_effective_dataset_keywords_by_accession(
+            self.study_context,
+            global_keywords,
+            dataset_keywords_by_accession,
+        )
         missing_keywords = find_selected_accessions_missing_keywords(
             self.study_context,
             selected_accessions,
-            dataset_keywords_by_accession,
+            effective_dataset_keywords_by_accession,
         )
 
         self.assertEqual(selected_accessions, {'EGAD50000001323', 'EGAD50000001324'})
@@ -140,7 +189,14 @@ class MetadataExportAppStateTests(unittest.TestCase):
                 'EGAD50000001324': ['reference cohort'],
             },
         )
-        self.assertEqual(missing_keywords, ['EGAD50000001323'])
+        self.assertEqual(
+            effective_dataset_keywords_by_accession,
+            {
+                'EGAD50000001323': ['genomics'],
+                'EGAD50000001324': ['genomics', 'reference cohort'],
+            },
+        )
+        self.assertEqual(missing_keywords, [])
 
     def test_get_export_validation_message_checks_active_requirements_in_order(self) -> None:
         self.assertEqual(

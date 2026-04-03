@@ -12,6 +12,8 @@ from metadata_export_core.core import (
     ExportProject,
     PUBLISHER_ORGANISATIONS,
     StudyContext,
+    merge_keywords,
+    transform_ega_dataset,
 )
 
 
@@ -23,6 +25,8 @@ def initialize_form_state_defaults(session_state: SessionStateMapping) -> None:
         session_state['creator_orgs'] = []
     if 'publisher_org' not in session_state:
         session_state['publisher_org'] = None
+    if 'global_keywords_raw' not in session_state:
+        session_state['global_keywords_raw'] = ''
     if 'site_base_url' not in session_state:
         session_state['site_base_url'] = DEFAULT_SITE_BASE_URL
     if 'sitemap_filename' not in session_state:
@@ -62,6 +66,7 @@ def restore_project_to_session_state(
     session_state['loaded_study_id'] = project['study_id']
     session_state['creator_orgs'] = project['creator_orgs']
     session_state['publisher_org'] = project['publisher_org']
+    session_state['global_keywords_raw'] = ', '.join(project.get('global_keywords', []))
     session_state['site_base_url'] = project['site_base_url']
     session_state['sitemap_filename'] = project['sitemap_filename']
     session_state.pop('artifacts', None)
@@ -81,6 +86,35 @@ def restore_project_to_session_state(
             continue
         session_state[f'include_{accession_id}'] = project_dataset['include']
         session_state[f'keywords_{accession_id}'] = ', '.join(project_dataset['keywords'])
+
+
+def build_preview_dataset_from_project(
+    project: ExportProject,
+    accession_id: str,
+) -> dict[str, object]:
+    study_context = project['study_context']
+    dataset = next(
+        dataset for dataset in study_context.datasets
+        if dataset['accession_id'] == accession_id
+    )
+    project_dataset = next(
+        dataset_config for dataset_config in project['datasets']
+        if dataset_config['accession_id'] == accession_id
+    )
+    return transform_ega_dataset(
+        ega_dataset=dataset,
+        num_datasets=len(study_context.datasets),
+        study_title=study_context.title,
+        study_url=study_context.url,
+        creator_orgs=project['creator_orgs'],
+        publisher_org=project['publisher_org'],
+        keywords=merge_keywords(project.get('global_keywords', []), project_dataset['keywords']),
+        site_base_url=project['site_base_url'],
+    )
+
+
+def collect_global_keywords(session_state: SessionStateMapping) -> list[str]:
+    return parse_keywords(str(session_state.get('global_keywords_raw', '')))
 
 
 def collect_selected_accessions(
@@ -106,16 +140,30 @@ def collect_dataset_keywords_by_accession(
     }
 
 
+def collect_effective_dataset_keywords_by_accession(
+    study_context: StudyContext,
+    global_keywords: list[str],
+    dataset_keywords_by_accession: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    return {
+        dataset['accession_id']: merge_keywords(
+            global_keywords,
+            dataset_keywords_by_accession[dataset['accession_id']],
+        )
+        for dataset in study_context.datasets
+    }
+
+
 def find_selected_accessions_missing_keywords(
     study_context: StudyContext,
     selected_accessions: set[str],
-    dataset_keywords_by_accession: dict[str, list[str]],
+    effective_dataset_keywords_by_accession: dict[str, list[str]],
 ) -> list[str]:
     return [
         dataset['accession_id']
         for dataset in study_context.datasets
         if dataset['accession_id'] in selected_accessions
-        and not dataset_keywords_by_accession[dataset['accession_id']]
+        and not effective_dataset_keywords_by_accession[dataset['accession_id']]
     ]
 
 

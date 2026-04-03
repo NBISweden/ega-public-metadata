@@ -524,6 +524,7 @@ class ResearchDataExportTests(unittest.TestCase):
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
             ),
+            global_keywords=['genomics'],
             dataset_keywords_by_accession={
                 'EGAD50000001323': ['population genetics'],
                 'EGAD50000001324': ['reference cohort'],
@@ -538,6 +539,7 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(restored_project['study_id'], 'EGAS50000000906')
         self.assertEqual(restored_project['creator_orgs'], ['UU', 'LU'])
         self.assertEqual(restored_project['publisher_org'], 'BTB')
+        self.assertEqual(restored_project['global_keywords'], ['genomics'])
         self.assertEqual(
             restored_project['datasets'],
             [
@@ -558,9 +560,47 @@ class ResearchDataExportTests(unittest.TestCase):
             ['EGAD50000001324.qmd'],
         )
         self.assertIn(
-            'categories:\n  - "reference cohort"',
+            'categories:\n  - "genomics"\n  - "reference cohort"',
             artifacts.dataset_files[0].content,
         )
+
+    def test_deserialize_export_project_supports_schema_version_1_without_global_keywords(self) -> None:
+        project_json = """
+        {
+          "schema_version": 1,
+          "created_at": "2026-04-03T12:00:00+00:00",
+          "study_id": "EGAS50000000906",
+          "study_context": {
+            "title": "SweGen",
+            "url": "http://identifiers.org/ega.study:EGAS50000000906",
+            "datasets": [
+              {
+                "accession_id": "EGAD50000001323",
+                "title": "Dataset A",
+                "released_date": "2024-01-02T10:00:00Z",
+                "description": "First dataset description."
+              }
+            ]
+          },
+          "creator_orgs": ["UU"],
+          "publisher_org": "LU",
+          "site_base_url": "https://example.org",
+          "sitemap_filename": "catalogue-sitemap.xml",
+          "datasets": [
+            {
+              "accession_id": "EGAD50000001323",
+              "include": true,
+              "keywords": ["population genetics"]
+            }
+          ]
+        }
+        """
+
+        restored_project = deserialize_export_project(project_json)
+
+        self.assertEqual(restored_project['schema_version'], 2)
+        self.assertEqual(restored_project['global_keywords'], [])
+        self.assertEqual(restored_project['datasets'][0]['keywords'], ['population genetics'])
 
     def test_build_export_artifacts_matches_golden_output(self) -> None:
         study_context = StudyContext(

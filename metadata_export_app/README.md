@@ -9,7 +9,7 @@ The app is intended to replace the existing CLI export workflow over time, but t
 -   Fetch a study and its datasets from the EGA public metadata API
 -   Set one or more creators at study level
 -   Set a required publisher at study level
--   Add required keywords individually per dataset
+-   Add global keywords for all datasets plus additional keywords per dataset
 -   Save a reproducible project snapshot as JSON
 -   Load a saved project snapshot and continue editing
 -   Preview generated `qmd` and `schema.org` JSON-LD

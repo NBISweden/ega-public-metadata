@@ -20,6 +20,7 @@ from metadata_export_core.core import (
     DEFAULT_SITEMAP_FILENAME,
     EGAClient,
     ExportConfig,
+    ExportProject,
     MetadataValidationError,
     ORGANISATIONS,
     PUBLISHER_ORGANISATIONS,
@@ -31,18 +32,19 @@ from metadata_export_core.core import (
     ensure_output_dir,
     fetch_study_context,
     serialize_export_project,
-    transform_ega_dataset,
     write_export_artifacts,
 )
 from metadata_export_app.state import (
+    build_preview_dataset_from_project,
+    collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
+    collect_global_keywords,
     collect_selected_accessions,
     find_selected_accessions_missing_keywords,
     get_export_validation_message,
     get_publisher_select_index,
     initialize_dataset_state,
     initialize_form_state_defaults,
-    parse_keywords,
     restore_project_to_session_state,
 )
 
@@ -56,30 +58,6 @@ st.set_page_config(
 def load_study_context(study_id: str) -> StudyContext:
     with EGAClient() as client:
         return fetch_study_context(client, study_id.strip())
-
-
-def build_preview_dataset(
-    study_context: StudyContext,
-    accession_id: str,
-    creator_orgs: list[str],
-    publisher_org: str,
-    site_base_url: str,
-) -> dict[str, object]:
-    dataset = next(dataset for dataset in study_context.datasets if dataset['accession_id'] == accession_id)
-    keywords = parse_keywords(cast(str, st.session_state.get(f'keywords_{accession_id}', '')))
-    return cast(
-        dict[str, object],
-        transform_ega_dataset(
-            ega_dataset=dataset,
-            num_datasets=len(study_context.datasets),
-            study_title=study_context.title,
-            study_url=study_context.url,
-            creator_orgs=creator_orgs,
-            publisher_org=publisher_org,
-            keywords=keywords,
-            site_base_url=site_base_url.rstrip('/'),
-        ),
-    )
 
 
 st.title('FEGA Sweden Metadata Export')
@@ -173,15 +151,25 @@ with settings_col:
         key='output_dir',
         help='Optional local export path for writing generated files directly to disk.',
     )
+    st.text_area(
+        'Global keywords',
+        key='global_keywords_raw',
+        help='Keywords applied to every included dataset. Use commas or new lines.',
+    )
 
 creator_orgs = cast(list[str], st.session_state.get('creator_orgs', []))
 publisher_org = cast(str | None, st.session_state.get('publisher_org'))
 site_base_url = cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL))
 sitemap_filename = cast(str, st.session_state.get('sitemap_filename', DEFAULT_SITEMAP_FILENAME))
 output_dir = cast(str, st.session_state.get('output_dir', 'tmp/streamlit-export'))
+global_keywords = collect_global_keywords(st.session_state)
 
 st.subheader('Dataset-Level Metadata')
-st.caption('Keywords are required for each selected dataset and can be specified independently.')
+st.caption(
+    'Additional keywords can be specified per dataset. '
+    'Each selected dataset must end up with at least one keyword from global keywords, '
+    'dataset-specific keywords, or both.'
+)
 
 for dataset in study_context.datasets:
     accession_id = dataset['accession_id']
@@ -193,20 +181,27 @@ for dataset in study_context.datasets:
                 key=f'include_{accession_id}',
             )
             st.text_input(
-                'Keywords',
+                'Additional keywords',
                 key=f'keywords_{accession_id}',
-                help='Enter comma-separated or line-separated keywords for this dataset.',
+                help='Enter comma-separated or line-separated keywords to add for this dataset.',
             )
         with right_col:
             st.markdown(f"**Release date**  \n`{dataset['released_date']}`")
             st.markdown(f"**Description**  \n{dataset['description']}")
+            if global_keywords:
+                st.markdown(f"**Global keywords**  \n{', '.join(global_keywords)}")
 
 selected_accessions = collect_selected_accessions(study_context, st.session_state)
 dataset_keywords_by_accession = collect_dataset_keywords_by_accession(study_context, st.session_state)
+effective_dataset_keywords_by_accession = collect_effective_dataset_keywords_by_accession(
+    study_context,
+    global_keywords,
+    dataset_keywords_by_accession,
+)
 selected_accessions_missing_keywords = find_selected_accessions_missing_keywords(
     study_context,
     selected_accessions,
-    dataset_keywords_by_accession,
+    effective_dataset_keywords_by_accession,
 )
 
 preview_col, action_col = st.columns([2, 1], gap='large')
@@ -233,6 +228,7 @@ with action_col:
                 creator_orgs=creator_orgs,
                 publisher_org=publisher_org,
                 export_config=export_config,
+                global_keywords=global_keywords,
                 dataset_keywords_by_accession=dataset_keywords_by_accession,
                 selected_accessions=selected_accessions,
             )
@@ -285,7 +281,8 @@ with action_col:
 with preview_col:
     st.subheader('Preview')
     artifacts = st.session_state.get('artifacts')
-    if not artifacts:
+    project = cast(ExportProject | None, st.session_state.get('project'))
+    if not artifacts or project is None:
         st.info('Generate an export to preview the resulting files.')
     else:
         preview_options = [dataset_file.filename for dataset_file in artifacts.dataset_files]
@@ -294,13 +291,7 @@ with preview_col:
             dataset_file for dataset_file in artifacts.dataset_files if dataset_file.filename == preview_filename
         )
         preview_accession = preview_filename.removesuffix('.qmd')
-        preview_dataset = build_preview_dataset(
-            study_context=study_context,
-            accession_id=preview_accession,
-            creator_orgs=creator_orgs,
-            publisher_org=publisher_org,
-            site_base_url=site_base_url,
-        )
+        preview_dataset = build_preview_dataset_from_project(project, preview_accession)
         download_col, sitemap_download_col = st.columns(2, gap='small')
         with download_col:
             st.download_button(

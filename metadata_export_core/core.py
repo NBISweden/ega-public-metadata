@@ -123,6 +123,7 @@ ExportProject = TypedDict(
         'study_context': StudyContext,
         'creator_orgs': list[str],
         'publisher_org': str,
+        'global_keywords': list[str],
         'site_base_url': str,
         'sitemap_filename': str,
         'datasets': list[ExportProjectDataset],
@@ -162,7 +163,8 @@ class ExportArtifacts:
     sitemap_file: GeneratedFile
 
 
-PROJECT_SCHEMA_VERSION = 1
+PROJECT_SCHEMA_VERSION = 2
+SUPPORTED_PROJECT_SCHEMA_VERSIONS = {1, PROJECT_SCHEMA_VERSION}
 
 
 class MetadataValidationError(ValueError):
@@ -376,6 +378,7 @@ def build_export_project(
     creator_orgs: list[str],
     publisher_org: str,
     export_config: ExportConfig,
+    global_keywords: list[str] | None = None,
     dataset_keywords_by_accession: dict[str, list[str]] | None = None,
     selected_accessions: set[str] | None = None,
 ) -> ExportProject:
@@ -397,6 +400,7 @@ def build_export_project(
         study_context=study_context,
         creator_orgs=list(creator_orgs),
         publisher_org=publisher_org,
+        global_keywords=list(global_keywords or []),
         site_base_url=export_config.site_base_url,
         sitemap_filename=export_config.sitemap_filename,
         datasets=datasets,
@@ -418,7 +422,7 @@ def deserialize_export_project(project_json: str) -> ExportProject:
     if not isinstance(payload, dict):
         raise MetadataValidationError('Project file must contain a JSON object')
     schema_version = payload.get('schema_version')
-    if schema_version != PROJECT_SCHEMA_VERSION:
+    if schema_version not in SUPPORTED_PROJECT_SCHEMA_VERSIONS:
         raise MetadataValidationError(
             f'Unsupported project schema version "{schema_version}"'
         )
@@ -435,6 +439,13 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         raise MetadataValidationError(
             f'Project file contains invalid publisher "{publisher_org}"'
         )
+    global_keywords_raw = payload.get('global_keywords', [])
+    if not isinstance(global_keywords_raw, list):
+        raise MetadataValidationError('Project file global_keywords must be a list')
+    global_keywords = [
+        require_non_empty_string(keyword, 'global_keywords', 'project file')
+        for keyword in global_keywords_raw
+    ]
     site_base_url = require_non_empty_string(payload.get('site_base_url'), 'site_base_url', 'project file')
     sitemap_filename = require_non_empty_string(
         payload.get('sitemap_filename'),
@@ -486,6 +497,7 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         study_context=study_context,
         creator_orgs=creator_orgs,
         publisher_org=publisher_org,
+        global_keywords=global_keywords,
         site_base_url=site_base_url,
         sitemap_filename=sitemap_filename,
         datasets=project_datasets,
@@ -501,6 +513,7 @@ def build_export_artifacts_from_project(project: ExportProject) -> ExportArtifac
             site_base_url=project['site_base_url'],
             sitemap_filename=project['sitemap_filename'],
         ),
+        default_keywords=project.get('global_keywords', []),
         dataset_keywords_by_accession={
             dataset['accession_id']: dataset['keywords']
             for dataset in project['datasets']
@@ -555,7 +568,7 @@ def build_export_artifacts(
         accession_id = ega_dataset['accession_id']
         if selected_accessions is not None and accession_id not in selected_accessions:
             continue
-        keywords = list(keywords_by_accession.get(accession_id, default_keywords or []))
+        keywords = merge_keywords(default_keywords or [], keywords_by_accession.get(accession_id, []))
         if not keywords:
             raise MetadataValidationError(
                 f'dataset {accession_id} must include at least one keyword for Researchdata.se export'
@@ -748,6 +761,14 @@ def build_study_identifier(accession_id: str) -> str:
 
 def build_dataset_page_url(accession_id: str, site_base_url: str) -> str:
     return f'{site_base_url}/catalogue/datasets/{accession_id}.html'
+
+
+def merge_keywords(global_keywords: list[str], local_keywords: list[str]) -> list[str]:
+    merged_keywords: list[str] = []
+    for keyword in [*global_keywords, *local_keywords]:
+        if keyword not in merged_keywords:
+            merged_keywords.append(keyword)
+    return merged_keywords
 
 
 def normalize_ega_dataset_metadata(
