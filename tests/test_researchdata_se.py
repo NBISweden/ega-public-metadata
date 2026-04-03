@@ -704,6 +704,83 @@ class ResearchDataExportTests(unittest.TestCase):
             self.assertIn(f'Wrote {Path(tmp_dir) / "EGAD50000001323.qmd"}', stdout_value)
             self.assertIn(f'Wrote {Path(tmp_dir) / "catalogue-sitemap.xml"}', stdout_value)
 
+    def test_main_matches_core_export_artifacts_for_same_input(self) -> None:
+        study_payload = {
+            'accession_id': 'EGAS50000000906',
+            'title': 'SweGen',
+        }
+        dataset_payload = [
+            {
+                'accession_id': 'EGAD50000001324',
+                'title': 'Dataset B',
+                'released_date': '2024-01-03T10:00:00Z',
+                'description': 'Second dataset description.',
+            },
+            {
+                'accession_id': 'EGAD50000001323',
+                'title': 'Dataset A',
+                'released_date': '2024-01-02T10:00:00Z',
+                'description': 'First dataset description.',
+            },
+        ]
+        study_context = fetch_study_context(
+            FakeAPIClient(
+                study_payload=study_payload,
+                dataset_payload=dataset_payload,
+            ),
+            'EGAS50000000906',
+        )
+        expected_artifacts = build_export_artifacts(
+            study_context=study_context,
+            creator_orgs=['UU', 'LU'],
+            publisher_org='BTB',
+            export_config=ExportConfig(
+                site_base_url='https://example.org',
+                sitemap_filename='catalogue-sitemap.xml',
+            ),
+            default_keywords=['genomics'],
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stdout_buffer = io.StringIO()
+            fake_client = FakeAPIClient(
+                study_payload=study_payload,
+                dataset_payload=dataset_payload,
+            )
+
+            with patch('metadata_export_core.core.EGAClient', return_value=fake_client):
+                with redirect_stdout(stdout_buffer):
+                    exit_code = main([
+                        '--creator', 'UU',
+                        '--creator', 'LU',
+                        '--publisher', 'BTB',
+                        '--keyword', 'genomics',
+                        '--site-base-url', 'https://example.org',
+                        '--sitemap-filename', 'catalogue-sitemap.xml',
+                        'EGAS50000000906',
+                        tmp_dir,
+                    ])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(
+                sorted(path.name for path in Path(tmp_dir).iterdir()),
+                ['EGAD50000001323.qmd', 'EGAD50000001324.qmd', 'catalogue-sitemap.xml'],
+            )
+
+            actual_files = {
+                path.name: path.read_text(encoding='utf-8')
+                for path in Path(tmp_dir).iterdir()
+            }
+            expected_files = {
+                dataset_file.filename: dataset_file.content
+                for dataset_file in expected_artifacts.dataset_files
+            }
+            expected_files[expected_artifacts.sitemap_file.filename] = (
+                expected_artifacts.sitemap_file.content
+            )
+
+            self.assertEqual(actual_files, expected_files)
+
     def test_main_returns_validation_error_with_mocked_client(self) -> None:
         fake_client = FakeAPIClient(
             study_payload={
