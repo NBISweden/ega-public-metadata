@@ -77,6 +77,20 @@ ResearchDataset = TypedDict('ResearchDataset', {
 
 
 @dataclass(frozen=True)
+class NormalizedDatasetMetadata:
+    accession_id: str
+    title: str
+    date_published: str
+    description: str
+    study_title: str
+    study_identifier: str
+    publisher: Organisation
+    in_language: list[dict[str, str]]
+    creator: Organisation | None = None
+    keywords: list[str] | None = None
+
+
+@dataclass(frozen=True)
 class StudyContext:
     title: str
     url: str
@@ -437,30 +451,35 @@ def transform_ega_dataset(
     creator_org: str | None = None,
     keywords: list[str] | None = None,
 ) -> ResearchDataset:
-    description = build_dataset_description(
-        ega_dataset['description'],
-        num_datasets=num_datasets,
+    normalized = normalize_ega_dataset_metadata(
+        accession_id=ega_dataset['accession_id'],
+        title=ega_dataset['title'],
+        released_date=ega_dataset['released_date'],
+        description=ega_dataset['description'],
         study_title=study_title,
         study_url=study_url,
+        num_datasets=num_datasets,
+        creator_org=creator_org,
+        keywords=keywords,
     )
     dataset: ResearchDataset = {
         '@context': 'https://schema.org',
         '@type': 'Dataset',
-        'identifier': build_dataset_identifier(ega_dataset['accession_id']),
-        'name': ega_dataset['title'].strip(),
-        'publisher': dict(ORGANISATIONS['FEGA-SE']),
-        'datePublished': parse_iso_date(ega_dataset['released_date']),
-        'description': description,
-        'inLanguage': [{'@type': 'Language', 'identifier': 'en', 'name': 'English'}],
+        'identifier': build_dataset_identifier(normalized.accession_id),
+        'name': normalized.title,
+        'publisher': normalized.publisher,
+        'datePublished': normalized.date_published,
+        'description': normalized.description,
+        'inLanguage': normalized.in_language,
         'isPartOf': {
-            '@id': study_url,
-            'name': study_title,
+            '@id': normalized.study_identifier,
+            'name': normalized.study_title,
         },
     }
-    if creator_org not in (None, 'unspecified'):
-        dataset['creator'] = dict(ORGANISATIONS[creator_org])
-    if keywords:
-        dataset['keywords'] = keywords
+    if normalized.creator:
+        dataset['creator'] = normalized.creator
+    if normalized.keywords:
+        dataset['keywords'] = normalized.keywords
     return dataset
 
 
@@ -474,6 +493,41 @@ def build_study_identifier(accession_id: str) -> str:
 
 def build_dataset_page_url(accession_id: str, site_base_url: str) -> str:
     return f'{site_base_url}/catalogue/datasets/{accession_id}.html'
+
+
+def normalize_ega_dataset_metadata(
+    accession_id: str,
+    title: str,
+    released_date: str,
+    description: str,
+    study_title: str,
+    study_url: str,
+    num_datasets: int,
+    creator_org: str | None = None,
+    keywords: list[str] | None = None,
+) -> NormalizedDatasetMetadata:
+    creator = None
+    if creator_org not in (None, 'unspecified'):
+        creator = dict(ORGANISATIONS[creator_org])
+    normalized_keywords = list(keywords or [])
+
+    return NormalizedDatasetMetadata(
+        accession_id=accession_id,
+        title=title.strip(),
+        date_published=parse_iso_date(released_date),
+        description=build_dataset_description(
+            description,
+            num_datasets=num_datasets,
+            study_title=study_title,
+            study_url=study_url,
+        ),
+        study_title=study_title,
+        study_identifier=study_url,
+        publisher=dict(ORGANISATIONS['FEGA-SE']),
+        in_language=[{'@type': 'Language', 'identifier': 'en', 'name': 'English'}],
+        creator=creator,
+        keywords=normalized_keywords,
+    )
 
 
 def parse_iso_date(value: str) -> str:

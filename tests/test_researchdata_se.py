@@ -16,6 +16,7 @@ from metadata_export.researchdata_se import (
     export_study_metadata,
     fetch_study_context,
     main,
+    normalize_ega_dataset_metadata,
     parse_args,
     validate_ega_dataset,
     validate_ega_study,
@@ -135,6 +136,28 @@ class ResearchDataExportTests(unittest.TestCase):
             'http://identifiers.org/ega.study:EGAS50000000906',
         )
         self.assertIn('This dataset is one of 2 datasets', dataset['description'])
+
+    def test_normalize_ega_dataset_metadata_builds_internal_metadata_model(self) -> None:
+        normalized = normalize_ega_dataset_metadata(
+            accession_id='EGAD50000001323',
+            title=' SweGen reference dataset ',
+            released_date='2024-01-02T03:04:05Z',
+            description='Population-scale whole genome variation.',
+            study_title='SweGen',
+            study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            num_datasets=2,
+            creator_org='UU',
+            keywords=['genomics', 'reference dataset'],
+        )
+
+        self.assertEqual(normalized.accession_id, 'EGAD50000001323')
+        self.assertEqual(normalized.title, 'SweGen reference dataset')
+        self.assertEqual(normalized.date_published, '2024-01-02')
+        self.assertEqual(normalized.study_identifier, 'http://identifiers.org/ega.study:EGAS50000000906')
+        self.assertEqual(normalized.publisher['name'], 'FEGA Sweden')
+        self.assertEqual(normalized.creator['name'], 'Uppsala University')
+        self.assertEqual(normalized.keywords, ['genomics', 'reference dataset'])
+        self.assertIn('This dataset is one of 2 datasets', normalized.description)
 
     def test_compose_yaml_front_matter_handles_missing_keywords(self) -> None:
         ega_dataset = {
