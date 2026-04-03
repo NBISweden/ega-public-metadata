@@ -84,7 +84,7 @@ Wrote tmp/sitemap.xml
 The export currently works in three layers:
 
 -   **EGA source metadata**: the validated study and dataset fields fetched from the EGA API
--   **Normalized internal metadata**: a script-internal model that separates source values, derived values, and FEGA-managed enrichment before rendering
+-   **Normalized internal metadata**: a script-internal model that separates source values, derived values, and FEGA Sweden-managed enrichment before rendering
 -   **schema.org JSON-LD**: the final `Dataset` payload embedded in the generated `.qmd` files
 
 This split makes it easier to evolve the mapping stepwise without having schema.org decisions leak into every part of the export flow.
@@ -107,20 +107,20 @@ The generated `.qmd` files embed a `schema.org` JSON-LD `Dataset` payload in the
 
 | schema.org field | Metadata layer | Source in EGA / script input | Transformation / note |
 | --- | --- | --- | --- |
-| `@context` | FEGA-managed | hard-coded in script | always `https://schema.org` |
-| `@type` | FEGA-managed | hard-coded in script | always `Dataset` |
+| `@context` | FEGA Sweden-managed | hard-coded in script | always `https://schema.org` |
+| `@type` | FEGA Sweden-managed | hard-coded in script | always `Dataset` |
 | `identifier` | derived | `dataset.accession_id` | converted to `http://identifiers.org/ega.dataset:{accession_id}` |
 | `name` | EGA source | `dataset.title` | trimmed and emitted as dataset title |
-| `publisher` | FEGA enrichment | `--creator` CLI option | set to the selected responsible organisation; falls back to `FEGA Sweden` if no organisation is supplied |
-| `includedInDataCatalog` | FEGA-managed | export site base URL | emitted as a `DataCatalog` for `FEGA Sweden` |
-| `sdPublisher` | FEGA-managed | export site base URL | emitted as `FEGA Sweden` as publisher of the structured metadata |
+| `publisher` | FEGA Sweden enrichment | `--creator` CLI option | set to the selected responsible organisation; falls back to `FEGA Sweden` if no organisation is supplied |
+| `includedInDataCatalog` | FEGA Sweden-managed | export site base URL | emitted as a `DataCatalog` for `FEGA Sweden` |
+| `sdPublisher` | FEGA Sweden-managed | export site base URL | emitted as `FEGA Sweden` as publisher of the structured metadata |
 | `datePublished` | derived from EGA source | `dataset.released_date` | parsed from ISO timestamp and normalized to `YYYY-MM-DD` |
 | `description` | derived from EGA source | `dataset.description` | dataset description plus an appended summary saying which study the dataset belongs to |
-| `inLanguage` | FEGA-managed | hard-coded in script | always English: `en` / `English` |
+| `inLanguage` | FEGA Sweden-managed | hard-coded in script | always English: `en` / `English` |
 | `isPartOf.@id` | derived | `study.accession_id` | converted to `http://identifiers.org/ega.study:{accession_id}` |
 | `isPartOf.name` | EGA source | `study.title` | copied from the EGA study title |
-| `creator` | FEGA enrichment | `--creator` CLI option | included only when a specific organisation is supplied; omitted for `unspecified` |
-| `keywords` | FEGA enrichment | repeated `--keyword` CLI options | included only when one or more keywords are supplied |
+| `creator` | FEGA Sweden enrichment | `--creator` CLI option | included only when a specific organisation is supplied; omitted for `unspecified` |
+| `keywords` | FEGA Sweden enrichment | repeated `--keyword` CLI options | included only when one or more keywords are supplied |
 
 Notes:
 
