@@ -131,11 +131,13 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(dataset['datePublished'], '2024-01-02')
         self.assertEqual(dataset['creator']['name'], 'Uppsala University')
         self.assertEqual(dataset['keywords'], ['genomics', 'reference dataset'])
-        self.assertEqual(dataset['publisher']['name'], 'FEGA Sweden')
+        self.assertEqual(dataset['publisher']['name'], 'Uppsala University')
+        self.assertEqual(dataset['publisher']['@id'], 'https://ror.org/048a87296')
         self.assertEqual(dataset['includedInDataCatalog']['@type'], 'DataCatalog')
         self.assertEqual(dataset['includedInDataCatalog']['url'], 'https://fega.nbis.se')
         self.assertEqual(dataset['sdPublisher']['name'], 'FEGA Sweden')
         self.assertEqual(dataset['sdPublisher']['url'], 'https://fega.nbis.se')
+        self.assertNotIn('@id', dataset['sdPublisher'])
         self.assertEqual(
             dataset['isPartOf']['@id'],
             'http://identifiers.org/ega.study:EGAS50000000906',
@@ -159,9 +161,11 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(normalized.title, 'SweGen reference dataset')
         self.assertEqual(normalized.date_published, '2024-01-02')
         self.assertEqual(normalized.study_identifier, 'http://identifiers.org/ega.study:EGAS50000000906')
-        self.assertEqual(normalized.publisher['name'], 'FEGA Sweden')
+        self.assertEqual(normalized.publisher['name'], 'Uppsala University')
+        self.assertEqual(normalized.publisher['@id'], 'https://ror.org/048a87296')
         self.assertEqual(normalized.included_in_data_catalog['url'], 'https://fega.nbis.se')
         self.assertEqual(normalized.sd_publisher['url'], 'https://fega.nbis.se')
+        self.assertNotIn('@id', normalized.sd_publisher)
         self.assertEqual(normalized.creator['name'], 'Uppsala University')
         self.assertEqual(normalized.keywords, ['genomics', 'reference dataset'])
         self.assertIn('This dataset is one of 2 datasets', normalized.description)
@@ -183,6 +187,27 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(dataset['includedInDataCatalog']['@id'], 'https://example.org')
         self.assertEqual(dataset['includedInDataCatalog']['url'], 'https://example.org')
         self.assertEqual(dataset['sdPublisher']['url'], 'https://example.org')
+        self.assertEqual(dataset['publisher']['name'], 'FEGA Sweden')
+        self.assertNotIn('@id', dataset['publisher'])
+
+    def test_transform_ega_dataset_omits_null_organisation_fields(self) -> None:
+        dataset = transform_ega_dataset(
+            {
+                'accession_id': 'EGAD50000001323',
+                'title': 'SweGen reference dataset',
+                'released_date': '2024-01-02T03:04:05Z',
+                'description': 'Population-scale whole genome variation.',
+            },
+            num_datasets=1,
+            study_title='SweGen',
+            study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            creator_org='BTB',
+        )
+
+        self.assertEqual(dataset['creator']['name'], 'The Swedish Childhood Tumor Biobank')
+        self.assertEqual(dataset['publisher']['name'], 'The Swedish Childhood Tumor Biobank')
+        self.assertNotIn('@id', dataset['creator'])
+        self.assertNotIn('@id', dataset['publisher'])
 
     def test_compose_yaml_front_matter_handles_missing_keywords(self) -> None:
         ega_dataset = {

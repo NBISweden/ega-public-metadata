@@ -95,11 +95,11 @@ The export now models FEGA Sweden in two explicit supporting roles in addition t
 
 | Role | schema.org field | Current value |
 | --- | --- | --- |
-| Dataset publisher | `publisher` | currently still `FEGA Sweden` as a transitional default |
+| Dataset publisher | `publisher` | selected organisation from `--creator`; falls back to `FEGA Sweden` when no organisation is supplied |
 | Catalog exposing the dataset | `includedInDataCatalog` | `FEGA Sweden` |
 | Publisher of the structured metadata | `sdPublisher` | `FEGA Sweden` |
 
-This makes it possible to change the semantics of `publisher` later without losing the information that the metadata record is exposed by FEGA Sweden.
+This means FEGA Sweden no longer needs to carry the full meaning of `publisher` when a responsible organisation is known. FEGA still remains explicit as the catalog exposing the dataset and as publisher of the structured metadata.
 
 ### EGA to schema.org mapping
 
@@ -111,7 +111,7 @@ The generated `.qmd` files embed a `schema.org` JSON-LD `Dataset` payload in the
 | `@type` | FEGA-managed | hard-coded in script | always `Dataset` |
 | `identifier` | derived | `dataset.accession_id` | converted to `http://identifiers.org/ega.dataset:{accession_id}` |
 | `name` | EGA source | `dataset.title` | trimmed and emitted as dataset title |
-| `publisher` | FEGA-managed | hard-coded in script | currently still set to `FEGA Sweden`; intended to be revisited separately from FEGA's catalog role |
+| `publisher` | FEGA enrichment | `--creator` CLI option | set to the selected responsible organisation; falls back to `FEGA Sweden` if no organisation is supplied |
 | `includedInDataCatalog` | FEGA-managed | export site base URL | emitted as a `DataCatalog` for `FEGA Sweden` |
 | `sdPublisher` | FEGA-managed | export site base URL | emitted as `FEGA Sweden` as publisher of the structured metadata |
 | `datePublished` | derived from EGA source | `dataset.released_date` | parsed from ISO timestamp and normalized to `YYYY-MM-DD` |
@@ -127,8 +127,9 @@ Notes:
 -   The normalization layer is implemented in `normalize_ega_dataset_metadata()`.
 -   The final schema.org rendering is implemented in `transform_ega_dataset()`.
 -   `identifier` and `isPartOf.@id` are derived identifiers, not values fetched directly from the API payload.
--   `creator` and `keywords` are enrichment fields added during export, not native EGA metadata fields.
+-   `publisher`, `creator`, and `keywords` are enrichment fields added during export, not native EGA metadata fields.
 -   `includedInDataCatalog` and `sdPublisher` are derived from the export configuration, primarily `--site-base-url`.
+-   Organisation objects omit keys whose values would otherwise be `null`, such as missing `@id` values.
 -   If this mapping grows beyond a dozen rows or starts needing rationale per field, move it to a dedicated section or a separate mapping document and keep a short summary here.
 
 ### Notes

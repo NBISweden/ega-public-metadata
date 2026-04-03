@@ -125,6 +125,13 @@ class MetadataValidationError(ValueError):
     """Raised when required metadata is missing or malformed."""
 
 
+def build_organisation(organisation_key: str) -> Organisation:
+    return cast(
+        Organisation,
+        {key: value for key, value in ORGANISATIONS[organisation_key].items() if value is not None},
+    )
+
+
 class EGAClient:
     def __init__(
         self,
@@ -517,8 +524,10 @@ def normalize_ega_dataset_metadata(
     site_base_url: str = DEFAULT_SITE_BASE_URL,
 ) -> NormalizedDatasetMetadata:
     creator = None
+    publisher = build_organisation('FEGA-SE')
     if creator_org not in (None, 'unspecified'):
-        creator = dict(ORGANISATIONS[creator_org])
+        creator = build_organisation(creator_org)
+        publisher = build_organisation(creator_org)
     normalized_keywords = list(keywords or [])
 
     return NormalizedDatasetMetadata(
@@ -533,7 +542,7 @@ def normalize_ega_dataset_metadata(
         ),
         study_title=study_title,
         study_identifier=study_url,
-        publisher=dict(ORGANISATIONS['FEGA-SE']),
+        publisher=publisher,
         included_in_data_catalog=build_fega_data_catalog(site_base_url),
         sd_publisher=build_fega_sd_publisher(site_base_url),
         in_language=[{'@type': 'Language', 'identifier': 'en', 'name': 'English'}],
@@ -552,7 +561,7 @@ def build_fega_data_catalog(site_base_url: str) -> dict[str, str]:
 
 
 def build_fega_sd_publisher(site_base_url: str) -> dict[str, str | None]:
-    publisher = dict(ORGANISATIONS['FEGA-SE'])
+    publisher = dict(build_organisation('FEGA-SE'))
     publisher['url'] = site_base_url
     return publisher
 
