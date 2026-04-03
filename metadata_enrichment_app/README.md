@@ -1,10 +1,10 @@
-# metadata-export-app
+# metadata-enrichment-app
 
 This folder contains FEGA Sweden Metadata Enrichment, a Streamlit app for interactively enriching FEGA Sweden metadata and exporting it to Quarto `.qmd` files and a sitemap file.
 
 The app is intended to replace the existing CLI export workflow over time, but the CLI script in `metadata_export/researchdata_se.py` is still kept as a reference path while the app is being validated.
 
-This folder also contains `metadata_export_app/cli.py`, the command-line interface for FEGA Sweden Metadata Enrichment, which uses the same project model and export core as the Streamlit app.
+This folder also contains `metadata_enrichment_app/cli.py`, the command-line interface for FEGA Sweden Metadata Enrichment, which uses the same project model and export core as the Streamlit app.
 
 ## Features
 
@@ -43,7 +43,7 @@ python3 -m pip install requests streamlit
 From the repository root:
 
 ``` text
-streamlit run metadata_export_app/app.py
+streamlit run metadata_enrichment_app/app.py
 ```
 
 ## CLI
@@ -56,7 +56,7 @@ The FEGA Sweden Metadata Enrichment CLI supports two modes:
 Example:
 
 ``` text
-python3 metadata_export_app/cli.py fetch \
+python3 metadata_enrichment_app/cli.py fetch \
   EGAS50000000906 \
   tmp/app-cli-export \
   --creator UU \
@@ -73,7 +73,7 @@ python3 metadata_export_app/cli.py fetch \
 To regenerate from a saved project snapshot:
 
 ``` text
-python3 metadata_export_app/cli.py project \
+python3 metadata_enrichment_app/cli.py project \
   tmp/app-cli-export/project.json \
   tmp/app-cli-regenerated
 ```

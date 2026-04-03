@@ -5,7 +5,7 @@ Python code for interacting with the [EGA (European Genome-phenome Archive) publ
 The repository also contains export tooling for preparing metadata for Researchdata.se:
 
 * `metadata_export/researchdata_se.py` for the current CLI workflow
-* `metadata_export_app/app.py` for the new Streamlit-based workflow under development
+* `metadata_enrichment_app/app.py` for the new Streamlit-based workflow under development
 
 During the transition, the CLI script is kept as a reference implementation while the Streamlit app is being validated against the same shared export core and regression tests.
 
