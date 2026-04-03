@@ -41,6 +41,7 @@ from metadata_export_app.state import (
     get_export_validation_message,
     get_publisher_select_index,
     initialize_dataset_state,
+    initialize_form_state_defaults,
     parse_keywords,
     restore_project_to_session_state,
 )
@@ -132,6 +133,7 @@ if study_context is None:
     st.stop()
 
 initialize_dataset_state(study_context, st.session_state)
+initialize_form_state_defaults(st.session_state)
 
 summary_col, settings_col = st.columns([1, 2], gap='large')
 
@@ -144,39 +146,39 @@ with summary_col:
 
 with settings_col:
     st.subheader('Study-Level Metadata')
-    creator_orgs = st.multiselect(
+    st.multiselect(
         'Creators',
         options=list(ORGANISATIONS.keys()),
-        default=cast(list[str], st.session_state.get('creator_orgs', [])),
+        key='creator_orgs',
         help='Select one or more organisations that created or collected the data.',
     )
-    st.session_state['creator_orgs'] = creator_orgs
-
-    publisher_default = cast(str | None, st.session_state.get('publisher_org'))
-    publisher_org = st.selectbox(
+    st.selectbox(
         'Publisher',
         options=list(PUBLISHER_ORGANISATIONS),
-        index=get_publisher_select_index(publisher_default),
+        index=get_publisher_select_index(cast(str | None, st.session_state.get('publisher_org'))),
         placeholder='Choose a publisher',
+        key='publisher_org',
         help='Dataset publisher. FEGA Sweden is intentionally excluded here.',
     )
-    st.session_state['publisher_org'] = publisher_org
-    site_base_url = st.text_input(
+    st.text_input(
         'Site base URL',
-        value=cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL)),
+        key='site_base_url',
     )
-    st.session_state['site_base_url'] = site_base_url
-    sitemap_filename = st.text_input(
+    st.text_input(
         'Sitemap filename',
-        value=cast(str, st.session_state.get('sitemap_filename', DEFAULT_SITEMAP_FILENAME)),
+        key='sitemap_filename',
     )
-    st.session_state['sitemap_filename'] = sitemap_filename
-    output_dir = st.text_input(
+    st.text_input(
         'Output directory',
-        value=cast(str, st.session_state.get('output_dir', 'tmp/streamlit-export')),
+        key='output_dir',
         help='Optional local export path for writing generated files directly to disk.',
     )
-    st.session_state['output_dir'] = output_dir
+
+creator_orgs = cast(list[str], st.session_state.get('creator_orgs', []))
+publisher_org = cast(str | None, st.session_state.get('publisher_org'))
+site_base_url = cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL))
+sitemap_filename = cast(str, st.session_state.get('sitemap_filename', DEFAULT_SITEMAP_FILENAME))
+output_dir = cast(str, st.session_state.get('output_dir', 'tmp/streamlit-export'))
 
 st.subheader('Dataset-Level Metadata')
 st.caption('Keywords are required for each selected dataset and can be specified independently.')

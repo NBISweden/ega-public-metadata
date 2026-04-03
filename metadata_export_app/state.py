@@ -6,10 +6,29 @@ import re
 
 from collections.abc import MutableMapping
 
-from metadata_export_core.core import ExportProject, PUBLISHER_ORGANISATIONS, StudyContext
+from metadata_export_core.core import (
+    DEFAULT_SITEMAP_FILENAME,
+    DEFAULT_SITE_BASE_URL,
+    ExportProject,
+    PUBLISHER_ORGANISATIONS,
+    StudyContext,
+)
 
 
 SessionStateMapping = MutableMapping[str, object]
+
+
+def initialize_form_state_defaults(session_state: SessionStateMapping) -> None:
+    if 'creator_orgs' not in session_state:
+        session_state['creator_orgs'] = []
+    if 'publisher_org' not in session_state:
+        session_state['publisher_org'] = None
+    if 'site_base_url' not in session_state:
+        session_state['site_base_url'] = DEFAULT_SITE_BASE_URL
+    if 'sitemap_filename' not in session_state:
+        session_state['sitemap_filename'] = DEFAULT_SITEMAP_FILENAME
+    if 'output_dir' not in session_state:
+        session_state['output_dir'] = 'tmp/streamlit-export'
 
 
 def parse_keywords(raw_value: str) -> list[str]:

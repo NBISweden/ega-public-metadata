@@ -8,6 +8,7 @@ from metadata_export_app.state import (
     get_export_validation_message,
     get_publisher_select_index,
     initialize_dataset_state,
+    initialize_form_state_defaults,
     parse_keywords,
     restore_project_to_session_state,
 )
@@ -39,6 +40,25 @@ class MetadataExportAppStateTests(unittest.TestCase):
             parse_keywords('genomics, population genetics\nwhole genome'),
             ['genomics', 'population genetics', 'whole genome'],
         )
+
+    def test_initialize_form_state_defaults_sets_empty_publisher_without_overwriting(self) -> None:
+        session_state = {
+            'site_base_url': 'https://example.org',
+            'publisher_org': 'LU',
+        }
+
+        initialize_form_state_defaults(session_state)
+
+        self.assertEqual(session_state['creator_orgs'], [])
+        self.assertEqual(session_state['publisher_org'], 'LU')
+        self.assertEqual(session_state['site_base_url'], 'https://example.org')
+        self.assertEqual(session_state['sitemap_filename'], 'sitemap.xml')
+        self.assertEqual(session_state['output_dir'], 'tmp/streamlit-export')
+
+        fresh_session_state = {}
+        initialize_form_state_defaults(fresh_session_state)
+        self.assertEqual(fresh_session_state['creator_orgs'], [])
+        self.assertIsNone(fresh_session_state['publisher_org'])
 
     def test_initialize_dataset_state_sets_defaults_without_overwriting_existing_values(self) -> None:
         session_state = {
