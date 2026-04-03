@@ -204,6 +204,7 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(dataset['publisher']['name'], 'Lund University')
         self.assertEqual(dataset['publisher']['@id'], 'https://ror.org/012a77v79')
         self.assertEqual(dataset['includedInDataCatalog']['@type'], 'DataCatalog')
+        self.assertEqual(dataset['includedInDataCatalog']['name'], 'FEGA Sweden')
         self.assertEqual(dataset['includedInDataCatalog']['url'], 'https://fega.nbis.se')
         self.assertEqual(dataset['sdPublisher']['name'], 'FEGA Sweden')
         self.assertEqual(dataset['sdPublisher']['url'], 'https://fega.nbis.se')
@@ -371,7 +372,7 @@ class ResearchDataExportTests(unittest.TestCase):
                 keywords=['genomics'],
             )
 
-    def test_transform_ega_dataset_uses_export_site_base_url_for_fega_roles(self) -> None:
+    def test_transform_ega_dataset_uses_export_site_configuration_for_catalog_roles(self) -> None:
         dataset = transform_ega_dataset(
             {
                 'accession_id': 'EGAD50000001323',
@@ -384,11 +385,14 @@ class ResearchDataExportTests(unittest.TestCase):
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
             publisher_org='UU',
             keywords=['genomics'],
+            site_name='NBIS Data Portal',
             site_base_url='https://example.org',
         )
 
         self.assertEqual(dataset['includedInDataCatalog']['@id'], 'https://example.org')
+        self.assertEqual(dataset['includedInDataCatalog']['name'], 'NBIS Data Portal')
         self.assertEqual(dataset['includedInDataCatalog']['url'], 'https://example.org')
+        self.assertEqual(dataset['sdPublisher']['name'], 'NBIS Data Portal')
         self.assertEqual(dataset['sdPublisher']['url'], 'https://example.org')
         self.assertEqual(dataset['publisher']['name'], 'Uppsala University')
         self.assertEqual(dataset['publisher']['@id'], 'https://ror.org/048a87296')
@@ -500,6 +504,7 @@ class ResearchDataExportTests(unittest.TestCase):
             creator_orgs=['UU', 'LU'],
             publisher_org='BTB',
             export_config=ExportConfig(
+                site_name='NBIS Data Portal',
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
                 sitemap_lastmod='2026-04-03',
@@ -528,6 +533,7 @@ class ResearchDataExportTests(unittest.TestCase):
             artifacts.sitemap_file.content,
         )
         self.assertIn('<lastmod>2026-04-03</lastmod>', artifacts.sitemap_file.content)
+        self.assertIn('"name": "NBIS Data Portal"', artifacts.dataset_files[0].content)
 
         zip_bytes = build_export_zip_bytes(artifacts)
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as archive:
@@ -579,6 +585,7 @@ class ResearchDataExportTests(unittest.TestCase):
                 creator_orgs=['UU'],
                 publisher_org='LU',
                 export_config=ExportConfig(
+                    site_name='FEGA Sweden',
                     site_base_url='https://example.org',
                     sitemap_filename='catalogue-sitemap.xml',
                 ),
@@ -610,11 +617,12 @@ class ResearchDataExportTests(unittest.TestCase):
             study_context=study_context,
             creator_orgs=['UU', 'LU'],
             publisher_org='BTB',
-                export_config=ExportConfig(
-                    site_base_url='https://example.org',
-                    sitemap_filename='catalogue-sitemap.xml',
-                    sitemap_lastmod='2026-04-03',
-                ),
+            export_config=ExportConfig(
+                site_name='NBIS Data Portal',
+                site_base_url='https://example.org',
+                sitemap_filename='catalogue-sitemap.xml',
+                sitemap_lastmod='2026-04-03',
+            ),
             global_keywords=['genomics'],
             dataset_keywords_by_accession={
                 'EGAD50000001323': ['population genetics'],
@@ -631,6 +639,7 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(restored_project['creator_orgs'], ['UU', 'LU'])
         self.assertEqual(restored_project['publisher_org'], 'BTB')
         self.assertEqual(restored_project['global_keywords'], ['genomics'])
+        self.assertEqual(restored_project['site_name'], 'NBIS Data Portal')
         self.assertEqual(restored_project['sitemap_lastmod'], '2026-04-03')
         self.assertEqual(
             restored_project['datasets'],
@@ -692,6 +701,7 @@ class ResearchDataExportTests(unittest.TestCase):
 
         self.assertEqual(restored_project['schema_version'], 3)
         self.assertEqual(restored_project['global_keywords'], [])
+        self.assertEqual(restored_project['site_name'], 'FEGA Sweden')
         self.assertIsNone(restored_project['sitemap_lastmod'])
         self.assertEqual(restored_project['datasets'][0]['keywords'], ['population genetics'])
 
@@ -720,6 +730,7 @@ class ResearchDataExportTests(unittest.TestCase):
             creator_orgs=['UU', 'LU'],
             publisher_org='BTB',
             export_config=ExportConfig(
+                site_name='FEGA Sweden',
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
             ),
@@ -1000,6 +1011,7 @@ class ResearchDataExportTests(unittest.TestCase):
             creator_orgs=['UU', 'LU'],
             publisher_org='BTB',
             export_config=ExportConfig(
+                site_name='FEGA Sweden',
                 site_base_url='https://example.org',
                 sitemap_filename='catalogue-sitemap.xml',
             ),

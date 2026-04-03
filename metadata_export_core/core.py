@@ -22,6 +22,7 @@ __version__ = '0.1.0'
 DEFAULT_TIMEOUT = 30
 DEFAULT_PAGE_SIZE = 100
 DEFAULT_SITE_BASE_URL = 'https://fega.nbis.se'
+DEFAULT_SITE_NAME = 'FEGA Sweden'
 DEFAULT_SITEMAP_FILENAME = 'sitemap.xml'
 SITEMAP_XMLNS = 'http://www.sitemaps.org/schemas/sitemap/0.9'
 
@@ -124,6 +125,7 @@ ExportProject = TypedDict(
         'creator_orgs': list[str],
         'publisher_org': str,
         'global_keywords': list[str],
+        'site_name': str,
         'site_base_url': str,
         'sitemap_filename': str,
         'sitemap_lastmod': str | None,
@@ -148,6 +150,7 @@ class SitemapEntry:
 
 @dataclass(frozen=True)
 class ExportConfig:
+    site_name: str
     site_base_url: str
     sitemap_filename: str
     sitemap_lastmod: str | None = None
@@ -358,6 +361,7 @@ def parse_args(args: list[str]) -> argparse.Namespace:
 
 def export_study_metadata(args: argparse.Namespace) -> None:
     export_config = ExportConfig(
+        site_name=DEFAULT_SITE_NAME,
         site_base_url=args.site_base_url.rstrip('/'),
         sitemap_filename=args.sitemap_filename,
     )
@@ -403,6 +407,7 @@ def build_export_project(
         creator_orgs=list(creator_orgs),
         publisher_org=publisher_org,
         global_keywords=list(global_keywords or []),
+        site_name=export_config.site_name,
         site_base_url=export_config.site_base_url,
         sitemap_filename=export_config.sitemap_filename,
         sitemap_lastmod=export_config.sitemap_lastmod,
@@ -449,6 +454,7 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         require_non_empty_string(keyword, 'global_keywords', 'project file')
         for keyword in global_keywords_raw
     ]
+    site_name = require_non_empty_string(payload.get('site_name', DEFAULT_SITE_NAME), 'site_name', 'project file')
     site_base_url = require_non_empty_string(payload.get('site_base_url'), 'site_base_url', 'project file')
     sitemap_filename = require_non_empty_string(
         payload.get('sitemap_filename'),
@@ -508,6 +514,7 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         creator_orgs=creator_orgs,
         publisher_org=publisher_org,
         global_keywords=global_keywords,
+        site_name=site_name,
         site_base_url=site_base_url,
         sitemap_filename=sitemap_filename,
         sitemap_lastmod=sitemap_lastmod,
@@ -521,6 +528,7 @@ def build_export_artifacts_from_project(project: ExportProject) -> ExportArtifac
         creator_orgs=project['creator_orgs'],
         publisher_org=project['publisher_org'],
         export_config=ExportConfig(
+            site_name=project.get('site_name', DEFAULT_SITE_NAME),
             site_base_url=project['site_base_url'],
             sitemap_filename=project['sitemap_filename'],
             sitemap_lastmod=project.get('sitemap_lastmod'),
@@ -593,6 +601,7 @@ def build_export_artifacts(
             creator_orgs=creator_orgs,
             publisher_org=publisher_org,
             keywords=keywords,
+            site_name=export_config.site_name,
             site_base_url=export_config.site_base_url,
         )
         filename = f'{accession_id}.qmd'
@@ -741,6 +750,7 @@ def transform_ega_dataset(
     publisher_org: str | None = None,
     keywords: list[str] | None = None,
     site_base_url: str = DEFAULT_SITE_BASE_URL,
+    site_name: str = DEFAULT_SITE_NAME,
 ) -> ResearchDataset:
     normalized = normalize_ega_dataset_metadata(
         accession_id=ega_dataset['accession_id'],
@@ -754,6 +764,7 @@ def transform_ega_dataset(
         publisher_org=publisher_org,
         keywords=keywords,
         site_base_url=site_base_url,
+        site_name=site_name,
     )
     dataset: ResearchDataset = {
         '@context': 'https://schema.org',
@@ -810,6 +821,7 @@ def normalize_ega_dataset_metadata(
     publisher_org: str | None = None,
     keywords: list[str] | None = None,
     site_base_url: str = DEFAULT_SITE_BASE_URL,
+    site_name: str = DEFAULT_SITE_NAME,
 ) -> NormalizedDatasetMetadata:
     creators = None
     if creator_orgs is not None:
@@ -842,25 +854,26 @@ def normalize_ega_dataset_metadata(
         study_title=study_title,
         study_identifier=study_url,
         publisher=publisher,
-        included_in_data_catalog=build_fega_data_catalog(site_base_url),
-        sd_publisher=build_fega_sd_publisher(site_base_url),
+        included_in_data_catalog=build_site_data_catalog(site_name, site_base_url),
+        sd_publisher=build_site_sd_publisher(site_name, site_base_url),
         in_language=[{'@type': 'Language', 'identifier': 'en', 'name': 'English'}],
         creators=creators,
         keywords=normalized_keywords,
     )
 
 
-def build_fega_data_catalog(site_base_url: str) -> dict[str, str]:
+def build_site_data_catalog(site_name: str, site_base_url: str) -> dict[str, str]:
     return {
         '@type': 'DataCatalog',
         '@id': site_base_url,
-        'name': 'FEGA Sweden',
+        'name': site_name,
         'url': site_base_url,
     }
 
 
-def build_fega_sd_publisher(site_base_url: str) -> dict[str, str | None]:
+def build_site_sd_publisher(site_name: str, site_base_url: str) -> dict[str, str | None]:
     publisher = dict(build_organisation('FEGA-SE'))
+    publisher['name'] = site_name
     publisher['url'] = site_base_url
     return publisher
 
