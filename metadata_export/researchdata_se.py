@@ -67,6 +67,8 @@ ResearchDataset = TypedDict('ResearchDataset', {
     'identifier': str,
     'name': str,
     'publisher': Organisation,
+    'includedInDataCatalog': dict[str, str],
+    'sdPublisher': dict[str, str | None],
     'datePublished': str,
     'description': str,
     'inLanguage': list[dict[str, str]],
@@ -85,6 +87,8 @@ class NormalizedDatasetMetadata:
     study_title: str
     study_identifier: str
     publisher: Organisation
+    included_in_data_catalog: dict[str, str]
+    sd_publisher: dict[str, str | None]
     in_language: list[dict[str, str]]
     creator: Organisation | None = None
     keywords: list[str] | None = None
@@ -348,6 +352,7 @@ def export_dataset_files(
             study_url=study_context.url,
             creator_org=creator_org,
             keywords=keywords,
+            site_base_url=export_config.site_base_url,
         )
         filepath = output_dir / f'{ega_dataset["accession_id"]}.qmd'
         write_dataset_file(filepath, dataset)
@@ -450,6 +455,7 @@ def transform_ega_dataset(
     study_url: str,
     creator_org: str | None = None,
     keywords: list[str] | None = None,
+    site_base_url: str = DEFAULT_SITE_BASE_URL,
 ) -> ResearchDataset:
     normalized = normalize_ega_dataset_metadata(
         accession_id=ega_dataset['accession_id'],
@@ -461,6 +467,7 @@ def transform_ega_dataset(
         num_datasets=num_datasets,
         creator_org=creator_org,
         keywords=keywords,
+        site_base_url=site_base_url,
     )
     dataset: ResearchDataset = {
         '@context': 'https://schema.org',
@@ -468,6 +475,8 @@ def transform_ega_dataset(
         'identifier': build_dataset_identifier(normalized.accession_id),
         'name': normalized.title,
         'publisher': normalized.publisher,
+        'includedInDataCatalog': normalized.included_in_data_catalog,
+        'sdPublisher': normalized.sd_publisher,
         'datePublished': normalized.date_published,
         'description': normalized.description,
         'inLanguage': normalized.in_language,
@@ -505,6 +514,7 @@ def normalize_ega_dataset_metadata(
     num_datasets: int,
     creator_org: str | None = None,
     keywords: list[str] | None = None,
+    site_base_url: str = DEFAULT_SITE_BASE_URL,
 ) -> NormalizedDatasetMetadata:
     creator = None
     if creator_org not in (None, 'unspecified'):
@@ -524,10 +534,27 @@ def normalize_ega_dataset_metadata(
         study_title=study_title,
         study_identifier=study_url,
         publisher=dict(ORGANISATIONS['FEGA-SE']),
+        included_in_data_catalog=build_fega_data_catalog(site_base_url),
+        sd_publisher=build_fega_sd_publisher(site_base_url),
         in_language=[{'@type': 'Language', 'identifier': 'en', 'name': 'English'}],
         creator=creator,
         keywords=normalized_keywords,
     )
+
+
+def build_fega_data_catalog(site_base_url: str) -> dict[str, str]:
+    return {
+        '@type': 'DataCatalog',
+        '@id': site_base_url,
+        'name': 'FEGA Sweden',
+        'url': site_base_url,
+    }
+
+
+def build_fega_sd_publisher(site_base_url: str) -> dict[str, str | None]:
+    publisher = dict(ORGANISATIONS['FEGA-SE'])
+    publisher['url'] = site_base_url
+    return publisher
 
 
 def parse_iso_date(value: str) -> str:

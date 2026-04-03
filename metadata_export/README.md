@@ -89,6 +89,18 @@ The export currently works in three layers:
 
 This split makes it easier to evolve the mapping stepwise without having schema.org decisions leak into every part of the export flow.
 
+### FEGA roles in schema.org
+
+The export now models FEGA Sweden in two explicit supporting roles in addition to the dataset `publisher` field:
+
+| Role | schema.org field | Current value |
+| --- | --- | --- |
+| Dataset publisher | `publisher` | currently still `FEGA Sweden` as a transitional default |
+| Catalog exposing the dataset | `includedInDataCatalog` | `FEGA Sweden` |
+| Publisher of the structured metadata | `sdPublisher` | `FEGA Sweden` |
+
+This makes it possible to change the semantics of `publisher` later without losing the information that the metadata record is exposed by FEGA Sweden.
+
 ### EGA to schema.org mapping
 
 The generated `.qmd` files embed a `schema.org` JSON-LD `Dataset` payload in the YAML front matter.
@@ -99,7 +111,9 @@ The generated `.qmd` files embed a `schema.org` JSON-LD `Dataset` payload in the
 | `@type` | FEGA-managed | hard-coded in script | always `Dataset` |
 | `identifier` | derived | `dataset.accession_id` | converted to `http://identifiers.org/ega.dataset:{accession_id}` |
 | `name` | EGA source | `dataset.title` | trimmed and emitted as dataset title |
-| `publisher` | FEGA-managed | hard-coded in script | currently always `FEGA Sweden` |
+| `publisher` | FEGA-managed | hard-coded in script | currently still set to `FEGA Sweden`; intended to be revisited separately from FEGA's catalog role |
+| `includedInDataCatalog` | FEGA-managed | export site base URL | emitted as a `DataCatalog` for `FEGA Sweden` |
+| `sdPublisher` | FEGA-managed | export site base URL | emitted as `FEGA Sweden` as publisher of the structured metadata |
 | `datePublished` | derived from EGA source | `dataset.released_date` | parsed from ISO timestamp and normalized to `YYYY-MM-DD` |
 | `description` | derived from EGA source | `dataset.description` | dataset description plus an appended summary saying which study the dataset belongs to |
 | `inLanguage` | FEGA-managed | hard-coded in script | always English: `en` / `English` |
@@ -114,6 +128,7 @@ Notes:
 -   The final schema.org rendering is implemented in `transform_ega_dataset()`.
 -   `identifier` and `isPartOf.@id` are derived identifiers, not values fetched directly from the API payload.
 -   `creator` and `keywords` are enrichment fields added during export, not native EGA metadata fields.
+-   `includedInDataCatalog` and `sdPublisher` are derived from the export configuration, primarily `--site-base-url`.
 -   If this mapping grows beyond a dozen rows or starts needing rationale per field, move it to a dedicated section or a separate mapping document and keep a short summary here.
 
 ### Notes

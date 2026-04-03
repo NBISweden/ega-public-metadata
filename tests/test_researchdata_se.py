@@ -131,6 +131,11 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(dataset['datePublished'], '2024-01-02')
         self.assertEqual(dataset['creator']['name'], 'Uppsala University')
         self.assertEqual(dataset['keywords'], ['genomics', 'reference dataset'])
+        self.assertEqual(dataset['publisher']['name'], 'FEGA Sweden')
+        self.assertEqual(dataset['includedInDataCatalog']['@type'], 'DataCatalog')
+        self.assertEqual(dataset['includedInDataCatalog']['url'], 'https://fega.nbis.se')
+        self.assertEqual(dataset['sdPublisher']['name'], 'FEGA Sweden')
+        self.assertEqual(dataset['sdPublisher']['url'], 'https://fega.nbis.se')
         self.assertEqual(
             dataset['isPartOf']['@id'],
             'http://identifiers.org/ega.study:EGAS50000000906',
@@ -155,9 +160,29 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(normalized.date_published, '2024-01-02')
         self.assertEqual(normalized.study_identifier, 'http://identifiers.org/ega.study:EGAS50000000906')
         self.assertEqual(normalized.publisher['name'], 'FEGA Sweden')
+        self.assertEqual(normalized.included_in_data_catalog['url'], 'https://fega.nbis.se')
+        self.assertEqual(normalized.sd_publisher['url'], 'https://fega.nbis.se')
         self.assertEqual(normalized.creator['name'], 'Uppsala University')
         self.assertEqual(normalized.keywords, ['genomics', 'reference dataset'])
         self.assertIn('This dataset is one of 2 datasets', normalized.description)
+
+    def test_transform_ega_dataset_uses_export_site_base_url_for_fega_roles(self) -> None:
+        dataset = transform_ega_dataset(
+            {
+                'accession_id': 'EGAD50000001323',
+                'title': 'SweGen reference dataset',
+                'released_date': '2024-01-02T03:04:05Z',
+                'description': 'Population-scale whole genome variation.',
+            },
+            num_datasets=1,
+            study_title='SweGen',
+            study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            site_base_url='https://example.org',
+        )
+
+        self.assertEqual(dataset['includedInDataCatalog']['@id'], 'https://example.org')
+        self.assertEqual(dataset['includedInDataCatalog']['url'], 'https://example.org')
+        self.assertEqual(dataset['sdPublisher']['url'], 'https://example.org')
 
     def test_compose_yaml_front_matter_handles_missing_keywords(self) -> None:
         ega_dataset = {
