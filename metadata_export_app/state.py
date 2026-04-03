@@ -20,6 +20,14 @@ from metadata_export_core.core import (
 SessionStateMapping = MutableMapping[str, object]
 
 
+def build_export_archive_filename(study_id: str) -> str:
+    return f'fega-sweden-metadata-export-{study_id}.zip'
+
+
+def build_project_filename(study_id: str) -> str:
+    return f'fega-sweden-metadata-project-{study_id}.json'
+
+
 def initialize_form_state_defaults(session_state: SessionStateMapping) -> None:
     if 'creator_orgs' not in session_state:
         session_state['creator_orgs'] = []

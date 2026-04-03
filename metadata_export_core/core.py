@@ -620,12 +620,17 @@ def write_export_artifacts(output_dir: Path, artifacts: ExportArtifacts) -> None
     print(f'Wrote {sitemap_path}')
 
 
-def build_export_zip_bytes(artifacts: ExportArtifacts) -> bytes:
+def build_export_zip_bytes(
+    artifacts: ExportArtifacts,
+    extra_files: list[GeneratedFile] | None = None,
+) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
         for dataset_file in artifacts.dataset_files:
             archive.writestr(dataset_file.filename, dataset_file.content)
         archive.writestr(artifacts.sitemap_file.filename, artifacts.sitemap_file.content)
+        for extra_file in extra_files or []:
+            archive.writestr(extra_file.filename, extra_file.content)
     return buffer.getvalue()
 
 

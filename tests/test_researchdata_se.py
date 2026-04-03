@@ -12,6 +12,7 @@ from metadata_export.researchdata_se import (
     EGAClient,
     ExportConfig,
     ExportedDataset,
+    GeneratedFile,
     MetadataValidationError,
     StudyContext,
     build_export_artifacts,
@@ -464,6 +465,26 @@ class ResearchDataExportTests(unittest.TestCase):
             self.assertEqual(
                 sorted(archive.namelist()),
                 ['EGAD50000001323.qmd', 'EGAD50000001324.qmd', 'catalogue-sitemap.xml'],
+            )
+
+        zip_bytes_with_project = build_export_zip_bytes(
+            artifacts,
+            extra_files=[
+                GeneratedFile(
+                    filename='fega-sweden-metadata-project-EGAS50000000906.json',
+                    content='{"study_id": "EGAS50000000906"}',
+                ),
+            ],
+        )
+        with zipfile.ZipFile(io.BytesIO(zip_bytes_with_project)) as archive:
+            self.assertEqual(
+                sorted(archive.namelist()),
+                [
+                    'EGAD50000001323.qmd',
+                    'EGAD50000001324.qmd',
+                    'catalogue-sitemap.xml',
+                    'fega-sweden-metadata-project-EGAS50000000906.json',
+                ],
             )
 
     def test_build_export_artifacts_requires_keywords_for_selected_dataset(self) -> None:

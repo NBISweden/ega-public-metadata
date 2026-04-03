@@ -21,6 +21,7 @@ from metadata_export_core.core import (
     EGAClient,
     ExportConfig,
     ExportProject,
+    GeneratedFile,
     MetadataValidationError,
     ORGANISATIONS,
     PUBLISHER_ORGANISATIONS,
@@ -36,7 +37,9 @@ from metadata_export_core.core import (
     write_export_artifacts,
 )
 from metadata_export_app.state import (
+    build_export_archive_filename,
     build_preview_dataset_from_project,
+    build_project_filename,
     collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
     collect_global_keywords,
@@ -261,7 +264,16 @@ with action_col:
             )
             artifacts = build_export_artifacts_from_project(project)
             project_json = serialize_export_project(project)
-            zip_bytes = build_export_zip_bytes(artifacts)
+            project_filename = build_project_filename(project['study_id'])
+            zip_bytes = build_export_zip_bytes(
+                artifacts,
+                extra_files=[
+                    GeneratedFile(
+                        filename=project_filename,
+                        content=project_json,
+                    )
+                ],
+            )
             st.session_state['artifacts'] = artifacts
             st.session_state['project_json'] = project_json
             st.session_state['project'] = project
@@ -271,14 +283,14 @@ with action_col:
             st.download_button(
                 'Download Export ZIP',
                 data=zip_bytes,
-                file_name='fega-sweden-metadata-export.zip',
+                file_name=build_export_archive_filename(project['study_id']),
                 mime='application/zip',
                 use_container_width=True,
             )
             st.download_button(
                 'Download Project JSON',
                 data=project_json,
-                file_name='fega-sweden-metadata-project.json',
+                file_name=project_filename,
                 mime='application/json',
                 use_container_width=True,
             )

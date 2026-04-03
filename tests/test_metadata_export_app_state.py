@@ -2,7 +2,9 @@ import unittest
 
 from metadata_export.researchdata_se import ExportConfig, StudyContext, build_export_project
 from metadata_export_app.state import (
+    build_export_archive_filename,
     build_preview_dataset_from_project,
+    build_project_filename,
     collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
     collect_global_keywords,
@@ -42,6 +44,16 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(
             parse_keywords('genomics, population genetics\nwhole genome'),
             ['genomics', 'population genetics', 'whole genome'],
+        )
+
+    def test_build_export_filenames_include_study_id(self) -> None:
+        self.assertEqual(
+            build_export_archive_filename('EGAS50000000906'),
+            'fega-sweden-metadata-export-EGAS50000000906.zip',
+        )
+        self.assertEqual(
+            build_project_filename('EGAS50000000906'),
+            'fega-sweden-metadata-project-EGAS50000000906.json',
         )
 
     def test_initialize_form_state_defaults_sets_empty_publisher_without_overwriting(self) -> None:
