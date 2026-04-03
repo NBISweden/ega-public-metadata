@@ -30,9 +30,11 @@ from metadata_export_core.core import (
     build_export_project,
     build_export_zip_bytes,
     deserialize_export_project,
+    ensure_output_dir,
     fetch_study_context,
     serialize_export_project,
     transform_ega_dataset,
+    write_export_artifacts,
 )
 
 
@@ -80,6 +82,8 @@ def restore_project_to_session(project: ExportProject) -> None:
     st.session_state['site_base_url'] = project['site_base_url']
     st.session_state['sitemap_filename'] = project['sitemap_filename']
     st.session_state.pop('artifacts', None)
+    st.session_state.pop('project_json', None)
+    st.session_state.pop('project', None)
     initialize_dataset_state(study_context)
     dataset_state = {
         dataset['accession_id']: dataset
@@ -211,9 +215,15 @@ with settings_col:
         value=cast(str, st.session_state.get('sitemap_filename', DEFAULT_SITEMAP_FILENAME)),
     )
     st.session_state['sitemap_filename'] = sitemap_filename
+    output_dir = st.text_input(
+        'Output directory',
+        value=cast(str, st.session_state.get('output_dir', 'tmp/streamlit-export')),
+        help='Optional local export path for writing generated files directly to disk.',
+    )
+    st.session_state['output_dir'] = output_dir
 
 st.subheader('Dataset-Level Metadata')
-st.caption('Keywords can be specified independently for each dataset before export.')
+st.caption('Keywords are required for each selected dataset and can be specified independently.')
 
 for dataset in study_context.datasets:
     accession_id = dataset['accession_id']
@@ -244,6 +254,12 @@ dataset_keywords_by_accession = {
     )
     for dataset in study_context.datasets
 }
+selected_accessions_missing_keywords = [
+    dataset['accession_id']
+    for dataset in study_context.datasets
+    if dataset['accession_id'] in selected_accessions
+    and not dataset_keywords_by_accession[dataset['accession_id']]
+]
 
 preview_col, action_col = st.columns([2, 1], gap='large')
 
@@ -253,6 +269,11 @@ with action_col:
         st.warning('Select at least one creator before generating export files.')
     elif not selected_accessions:
         st.warning('Select at least one dataset to include in the export.')
+    elif selected_accessions_missing_keywords:
+        st.warning(
+            'Add at least one keyword for every selected dataset before generating export files. '
+            f'Missing keywords for: {", ".join(selected_accessions_missing_keywords)}.'
+        )
     else:
         try:
             export_config = ExportConfig(
@@ -293,6 +314,26 @@ with action_col:
             )
         except MetadataValidationError as exc:
             st.error(f'Metadata validation failed: {exc}')
+
+    artifacts = st.session_state.get('artifacts')
+    if artifacts:
+        st.divider()
+        st.subheader('Write to Disk')
+        st.caption(
+            'Writes the currently prepared export to the selected local directory. '
+            'Only the currently included datasets are written.'
+        )
+        if st.button('Write Export to Output Directory', use_container_width=True):
+            output_dir_value = cast(str, st.session_state.get('output_dir', '')).strip()
+            if not output_dir_value:
+                st.error('Enter an output directory before writing files to disk.')
+            else:
+                try:
+                    output_path = ensure_output_dir(output_dir_value)
+                    write_export_artifacts(output_path, artifacts)
+                    st.success(f'Wrote export files to {output_path}')
+                except OSError as exc:
+                    st.error(f'Failed to write export files: {exc}')
 
 with preview_col:
     st.subheader('Preview')

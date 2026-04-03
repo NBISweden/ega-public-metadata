@@ -333,6 +333,7 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         action='append',
         dest='keywords',
         metavar='KEYWORD',
+        required=True,
         help='keyword describing the dataset; repeat the option for multiple keywords',
     )
     parser.add_argument(
@@ -555,6 +556,10 @@ def build_export_artifacts(
         if selected_accessions is not None and accession_id not in selected_accessions:
             continue
         keywords = list(keywords_by_accession.get(accession_id, default_keywords or []))
+        if not keywords:
+            raise MetadataValidationError(
+                f'dataset {accession_id} must include at least one keyword for Researchdata.se export'
+            )
         dataset = transform_ega_dataset(
             ega_dataset=ega_dataset,
             num_datasets=num_datasets,
@@ -771,6 +776,10 @@ def normalize_ega_dataset_metadata(
         )
     publisher = build_organisation(cast(str, publisher_org))
     normalized_keywords = list(keywords or [])
+    if not normalized_keywords:
+        raise MetadataValidationError(
+            'keywords must be specified for Researchdata.se export'
+        )
 
     return NormalizedDatasetMetadata(
         accession_id=accession_id,

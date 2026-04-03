@@ -31,7 +31,7 @@ python3 -m pip install requests
 ./researchdata_se.py -h
 usage: researchdata [-h] [-V] --creator {FEGA-SE,LiU,LU,UU,BTB}
                     --publisher {LiU,LU,UU,BTB}
-                    [--keyword KEYWORD] [--site-base-url SITE_BASE_URL]
+                    --keyword KEYWORD [--site-base-url SITE_BASE_URL]
                     [--sitemap-filename SITEMAP_FILENAME]
                     study_id output_dir
 
@@ -125,7 +125,7 @@ The generated `.qmd` files embed a `schema.org` JSON-LD `Dataset` payload in the
 | `isPartOf.@id` | derived | `study.accession_id` | converted to `http://identifiers.org/ega.study:{accession_id}` |
 | `isPartOf.name` | EGA source | `study.title` | copied from the EGA study title |
 | `creator` | FEGA Sweden enrichment | repeated `--creator` CLI options | required for Researchdata.se export; emitted as one or more creators |
-| `keywords` | FEGA Sweden enrichment | repeated `--keyword` CLI options | included only when one or more keywords are supplied |
+| `keywords` | FEGA Sweden enrichment | repeated `--keyword` CLI options | required for Researchdata.se export; CLI keywords are applied to every exported dataset |
 
 Notes:
 
@@ -139,6 +139,7 @@ Notes:
 -   Repeat `--creator` to include multiple creator organisations in the JSON-LD output.
 -   `--creator` is required because Researchdata.se treats `creator` as mandatory.
 -   `--publisher` is required because Researchdata.se treats `publisher` as mandatory.
+-   `--keyword` is required because Researchdata.se treats `keywords` as mandatory.
 -   `FEGA-SE` can be used as `creator`, but not as `publisher`.
 -   If this mapping grows beyond a dozen rows or starts needing rationale per field, move it to a dedicated section or a separate mapping document and keep a short summary here.
 

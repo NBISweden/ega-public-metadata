@@ -129,6 +129,7 @@ class ResearchDataExportTests(unittest.TestCase):
             '--creator', 'UU',
             '--creator', 'LU',
             '--publisher', 'BTB',
+            '--keyword', 'genomics',
             'EGAS50000000906',
             'tmp',
         ])
@@ -136,9 +137,19 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(args.creator, ['UU', 'LU'])
         self.assertEqual(args.publisher, 'BTB')
 
+    def test_parse_args_requires_keyword(self) -> None:
+        with self.assertRaises(SystemExit):
+            parse_args([
+                '--creator', 'UU',
+                '--publisher', 'LU',
+                'EGAS50000000906',
+                'tmp',
+            ])
+
     def test_parse_args_requires_creator(self) -> None:
         with self.assertRaises(SystemExit):
             parse_args([
+                '--keyword', 'genomics',
                 'EGAS50000000906',
                 'tmp',
             ])
@@ -147,6 +158,7 @@ class ResearchDataExportTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             parse_args([
                 '--creator', 'UU',
+                '--keyword', 'genomics',
                 'EGAS50000000906',
                 'tmp',
             ])
@@ -156,6 +168,7 @@ class ResearchDataExportTests(unittest.TestCase):
             parse_args([
                 '--creator', 'FEGA-SE',
                 '--publisher', 'FEGA-SE',
+                '--keyword', 'genomics',
                 'EGAS50000000906',
                 'tmp',
             ])
@@ -240,11 +253,13 @@ class ResearchDataExportTests(unittest.TestCase):
             study_title='SweGen',
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
             publisher_org='UU',
+            keywords=['genomics'],
         )
 
         self.assertEqual(dataset['publisher']['name'], 'Uppsala University')
         self.assertEqual(dataset['publisher']['@id'], 'https://ror.org/048a87296')
         self.assertNotIn('creator', dataset)
+        self.assertEqual(dataset['keywords'], ['genomics'])
 
     def test_transform_ega_dataset_requires_publisher_in_isolation(self) -> None:
         with self.assertRaisesRegex(
@@ -263,6 +278,24 @@ class ResearchDataExportTests(unittest.TestCase):
                 study_url='http://identifiers.org/ega.study:EGAS50000000906',
             )
 
+    def test_transform_ega_dataset_requires_keywords_in_isolation(self) -> None:
+        with self.assertRaisesRegex(
+            MetadataValidationError,
+            'keywords must be specified for Researchdata.se export',
+        ):
+            transform_ega_dataset(
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'SweGen reference dataset',
+                    'released_date': '2024-01-02T03:04:05Z',
+                    'description': 'Population-scale whole genome variation.',
+                },
+                num_datasets=1,
+                study_title='SweGen',
+                study_url='http://identifiers.org/ega.study:EGAS50000000906',
+                publisher_org='UU',
+            )
+
     def test_transform_ega_dataset_rejects_fega_se_as_publisher(self) -> None:
         with self.assertRaisesRegex(
             MetadataValidationError,
@@ -275,12 +308,13 @@ class ResearchDataExportTests(unittest.TestCase):
                     'released_date': '2024-01-02T03:04:05Z',
                     'description': 'Population-scale whole genome variation.',
                 },
-            num_datasets=1,
-            study_title='SweGen',
-            study_url='http://identifiers.org/ega.study:EGAS50000000906',
-            creator_orgs=['FEGA-SE'],
-            publisher_org='FEGA-SE',
-        )
+                num_datasets=1,
+                study_title='SweGen',
+                study_url='http://identifiers.org/ega.study:EGAS50000000906',
+                creator_orgs=['FEGA-SE'],
+                publisher_org='FEGA-SE',
+                keywords=['genomics'],
+            )
 
     def test_transform_ega_dataset_uses_export_site_base_url_for_fega_roles(self) -> None:
         dataset = transform_ega_dataset(
@@ -294,6 +328,7 @@ class ResearchDataExportTests(unittest.TestCase):
             study_title='SweGen',
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
             publisher_org='UU',
+            keywords=['genomics'],
             site_base_url='https://example.org',
         )
 
@@ -316,6 +351,7 @@ class ResearchDataExportTests(unittest.TestCase):
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
             creator_orgs=['BTB', 'FEGA-SE'],
             publisher_org='BTB',
+            keywords=['genomics'],
         )
 
         self.assertEqual(
@@ -327,7 +363,7 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertNotIn('@id', dataset['creator'][1])
         self.assertNotIn('@id', dataset['publisher'])
 
-    def test_compose_yaml_front_matter_handles_missing_keywords(self) -> None:
+    def test_compose_yaml_front_matter_includes_keywords(self) -> None:
         ega_dataset = {
             'accession_id': 'EGAD50000001323',
             'title': 'Dataset: with colon',
@@ -342,12 +378,13 @@ class ResearchDataExportTests(unittest.TestCase):
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
             creator_orgs=['UU', 'LU'],
             publisher_org='UU',
+            keywords=['genomics', 'reference dataset'],
         )
         front_matter = compose_yaml_front_matter(dataset)
 
         self.assertIn('title: "Dataset: with colon"', front_matter)
         self.assertIn('author:\n  - "Uppsala University"\n  - "Lund University"', front_matter)
-        self.assertIn('categories: []', front_matter)
+        self.assertIn('categories:\n  - "genomics"\n  - "reference dataset"', front_matter)
 
     def test_build_sitemap_entries_sorts_by_location(self) -> None:
         entries = build_sitemap_entries([
@@ -427,6 +464,36 @@ class ResearchDataExportTests(unittest.TestCase):
             self.assertEqual(
                 sorted(archive.namelist()),
                 ['EGAD50000001323.qmd', 'EGAD50000001324.qmd', 'catalogue-sitemap.xml'],
+            )
+
+    def test_build_export_artifacts_requires_keywords_for_selected_dataset(self) -> None:
+        study_context = StudyContext(
+            title='SweGen',
+            url='http://identifiers.org/ega.study:EGAS50000000906',
+            datasets=[
+                {
+                    'accession_id': 'EGAD50000001323',
+                    'title': 'Dataset A',
+                    'released_date': '2024-01-02T10:00:00Z',
+                    'description': 'First dataset description.',
+                },
+            ],
+        )
+
+        with self.assertRaisesRegex(
+            MetadataValidationError,
+            'dataset EGAD50000001323 must include at least one keyword for Researchdata.se export',
+        ):
+            build_export_artifacts(
+                study_context=study_context,
+                creator_orgs=['UU'],
+                publisher_org='LU',
+                export_config=ExportConfig(
+                    site_base_url='https://example.org',
+                    sitemap_filename='catalogue-sitemap.xml',
+                ),
+                dataset_keywords_by_accession={'EGAD50000001323': []},
+                selected_accessions={'EGAD50000001323'},
             )
 
     def test_export_project_roundtrip_preserves_snapshot_and_artifacts(self) -> None:
@@ -691,6 +758,7 @@ class ResearchDataExportTests(unittest.TestCase):
                 study_title='Study Alpha',
                 study_url='http://identifiers.org/ega.study:EGAS50000000906',
                 publisher_org='UU',
+                keywords=['genomics'],
             )
 
     def test_export_study_metadata_writes_dataset_files_and_sitemap_with_mocked_client(self) -> None:
@@ -854,6 +922,7 @@ class ResearchDataExportTests(unittest.TestCase):
                         '--creator', 'UU',
                         '--creator', 'LU',
                         '--publisher', 'LU',
+                        '--keyword', 'genomics',
                         'EGAS50000000906',
                         tmp_dir,
                     ])
