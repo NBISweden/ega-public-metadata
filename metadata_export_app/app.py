@@ -68,14 +68,14 @@ def load_study_context(study_id: str) -> StudyContext:
 
 st.title('FEGA Sweden Metadata Export')
 st.caption(
-    'Interactive export workflow for study-level metadata plus dataset-specific enrichment, '
-    'built to replace the current CLI once verified.'
+    'Create metadata exports for Researchdata.se from public EGA study metadata.'
 )
 
 st.markdown(
     """
-This app keeps the export logic separate from the UI and lets you enrich each dataset individually,
-especially keywords, before generating `.qmd` files and a sitemap bundle.
+Use this app to look up an EGA study, review the datasets that belong to it, add the metadata
+needed for publication, and generate Quarto `.qmd` files together with a sitemap and a saved
+project snapshot.
 """
 )
 
