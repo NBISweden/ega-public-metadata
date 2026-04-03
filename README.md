@@ -7,6 +7,8 @@ The repository also contains export tooling for preparing metadata for Researchd
 * `metadata_export/researchdata_se.py` for the current CLI workflow
 * `metadata_export_app/app.py` for the new Streamlit-based workflow under development
 
+During the transition, the CLI script is kept as a reference implementation while the Streamlit app is being validated against the same shared export core and regression tests.
+
 ## Prerequisites
 
 You need to have the following installed on your system:
@@ -20,6 +22,21 @@ You need to have the following installed on your system:
 ## Getting started
 
 Once you have installed the required software, just open the Jupyter notebook `ega-public-metadata.ipynb` and execute the code in the cells, from top to bottom. If you are not familiar with Jupyter notebooks, you may want to first have a look at [Jupyter's documentation](https://docs.jupyter.org/en/latest/).
+
+
+## Export validation
+
+The Researchdata.se export flow is currently validated in three ways:
+
+* shared core logic used by both the CLI and the Streamlit app
+* parity tests that compare CLI output with the shared core output for the same input
+* golden-output fixtures under `tests/fixtures/golden_export/` that lock representative `.qmd` and sitemap output
+
+Run the export tests from the repository root:
+
+``` text
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
 
 
 ## License

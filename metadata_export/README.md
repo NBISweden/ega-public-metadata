@@ -157,3 +157,11 @@ Run the regression and flow tests from the repository root:
 ``` text
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
+
+The current test coverage includes:
+
+-   validation and transformation tests for the shared export core
+-   parity tests that compare CLI output with core-generated artifacts for the same input
+-   golden-output fixtures under `tests/fixtures/golden_export/` that lock representative `.qmd` and sitemap content
+
+If you intentionally change the generated output format, update the corresponding fixture files in `tests/fixtures/golden_export/` and rerun the test suite before committing.

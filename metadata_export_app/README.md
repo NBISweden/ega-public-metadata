@@ -37,3 +37,25 @@ From the repository root:
 ``` text
 streamlit run metadata_export_app/app.py
 ```
+
+## Validation status
+
+The app uses the same core export logic as `metadata_export/researchdata_se.py`.
+
+The CLI script is still kept in the repository as a reference path until the Streamlit workflow is considered fully verified. This lets us compare outputs from both paths and reduce the risk of the app drifting semantically from the existing export behavior.
+
+## Tests and golden files
+
+Run the export tests from the repository root:
+
+``` text
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
+
+The test suite currently includes:
+
+-   CLI/core parity tests for the same export input
+-   golden-output fixtures under `tests/fixtures/golden_export/`
+-   project snapshot roundtrip tests
+
+If you intentionally change the export format, update the affected fixture files in `tests/fixtures/golden_export/` so that they match the new expected output, then rerun the test suite and review the diff before committing.
