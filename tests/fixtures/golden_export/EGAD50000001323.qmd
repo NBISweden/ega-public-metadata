@@ -33,7 +33,7 @@ format:
             "url": "https://example.org"
           },
           "datePublished": "2024-01-02",
-          "description": "First dataset description.\n\nThis dataset is one of 2 datasets included in the study SweGen (http://identifiers.org/ega.study:EGAS50000000906).",
+          "description": "First dataset description.\n\nThis dataset is one of 2 datasets included in the study \"SweGen\" (http://identifiers.org/ega.study:EGAS50000000906).",
           "inLanguage": [
             {
               "@type": "Language",
@@ -65,7 +65,7 @@ format:
 ---
 First dataset description.
 
-This dataset is one of 2 datasets included in the study SweGen (http://identifiers.org/ega.study:EGAS50000000906).
+This dataset is one of 2 datasets included in the study "SweGen" ([http://identifiers.org/ega.study:EGAS50000000906](http://identifiers.org/ega.study:EGAS50000000906)).
 
 **Official landing page:**
 <http://identifiers.org/ega.dataset:EGAD50000001323>

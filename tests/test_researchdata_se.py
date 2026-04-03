@@ -20,6 +20,7 @@ from metadata_export.researchdata_se import (
     build_export_project,
     build_export_zip_bytes,
     build_sitemap_entries,
+    compose_markdown,
     compose_yaml_front_matter,
     deserialize_export_project,
     export_study_metadata,
@@ -211,6 +212,7 @@ class ResearchDataExportTests(unittest.TestCase):
             'http://identifiers.org/ega.study:EGAS50000000906',
         )
         self.assertIn('This dataset is one of 2 datasets', dataset['description'])
+        self.assertIn('study "SweGen"', dataset['description'])
 
     def test_normalize_ega_dataset_metadata_builds_internal_metadata_model(self) -> None:
         normalized = normalize_ega_dataset_metadata(
@@ -241,6 +243,34 @@ class ResearchDataExportTests(unittest.TestCase):
         )
         self.assertEqual(normalized.keywords, ['genomics', 'reference dataset'])
         self.assertIn('This dataset is one of 2 datasets', normalized.description)
+        self.assertIn('study "SweGen"', normalized.description)
+
+    def test_compose_markdown_makes_study_url_clickable_in_body(self) -> None:
+        dataset = transform_ega_dataset(
+            {
+                'accession_id': 'EGAD50000001323',
+                'title': 'SweGen reference dataset',
+                'released_date': '2024-01-02T03:04:05Z',
+                'description': 'Population-scale whole genome variation.',
+            },
+            num_datasets=2,
+            study_title='SweGen',
+            study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            creator_orgs=['UU'],
+            publisher_org='LU',
+            keywords=['genomics'],
+        )
+
+        markdown = compose_markdown(dataset)
+
+        self.assertIn(
+            'study "SweGen" ([http://identifiers.org/ega.study:EGAS50000000906](http://identifiers.org/ega.study:EGAS50000000906)).',
+            markdown,
+        )
+        self.assertIn(
+            'study "SweGen" (http://identifiers.org/ega.study:EGAS50000000906).',
+            dataset['description'],
+        )
 
     def test_transform_ega_dataset_allows_publisher_without_creator_in_isolation(self) -> None:
         dataset = transform_ega_dataset(
@@ -261,6 +291,10 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(dataset['publisher']['@id'], 'https://ror.org/048a87296')
         self.assertNotIn('creator', dataset)
         self.assertEqual(dataset['keywords'], ['genomics'])
+        self.assertIn(
+            'This dataset is included in the study "SweGen" (http://identifiers.org/ega.study:EGAS50000000906).',
+            dataset['description'],
+        )
 
     def test_transform_ega_dataset_requires_publisher_in_isolation(self) -> None:
         with self.assertRaisesRegex(

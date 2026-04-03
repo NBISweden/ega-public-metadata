@@ -860,11 +860,15 @@ def build_dataset_description(
     study_url: str,
 ) -> str:
     description = description.strip()
-    dataset_label = 'dataset' if num_datasets == 1 else 'datasets'
-    study_summary = (
-        f'This dataset is one of {num_datasets} {dataset_label} included in the '
-        f'study {study_title} ({study_url}).'
-    )
+    if num_datasets == 1:
+        study_summary = (
+            f'This dataset is included in the study "{study_title}" ({study_url}).'
+        )
+    else:
+        study_summary = (
+            f'This dataset is one of {num_datasets} datasets included in the '
+            f'study "{study_title}" ({study_url}).'
+        )
     if description:
         return f'{description}\n\n{study_summary}'
     return study_summary
@@ -952,8 +956,15 @@ def indent_string(s: str, spaces: int = 8) -> str:
 
 
 def compose_markdown(dataset: ResearchDataset) -> str:
+    description = dataset['description']
+    study_url = dataset.get('isPartOf', {}).get('@id')
+    if isinstance(study_url, str):
+        description = description.replace(
+            f'({study_url})',
+            f'([{study_url}]({study_url}))',
+        )
     return f"""\
-{dataset['description']}
+{description}
 
 **Official landing page:**
 <{dataset['identifier']}>
