@@ -372,6 +372,6 @@ with preview_col:
         with preview_tabs[0]:
             st.code(preview_file.content, language='markdown')
         with preview_tabs[1]:
-            st.json(preview_dataset, expanded=False)
+            st.json(preview_dataset, expanded=1)
         with preview_tabs[2]:
             st.code(artifacts.sitemap_file.content, language='xml')
