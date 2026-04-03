@@ -45,7 +45,7 @@ options:
   -h, --help            show this help message and exit
   -V, --version         show program's version number and exit
   --creator {FEGA-SE,LiU,LU,UU,BTB}
-                        main organisation that collected the data
+                        main organisation that collected the data; repeat the option for multiple creators
   --publisher {LiU,LU,UU,BTB}
                         organisation responsible for publishing the dataset metadata record
   --keyword KEYWORD     keyword describing the dataset; repeat the option for multiple keywords
@@ -60,6 +60,7 @@ options:
 ``` text
 ./researchdata_se.py \
   --creator UU \
+  --creator BTB \
   --publisher LU \
   --keyword "Swedish population" \
   --keyword "genetic variation" \
@@ -123,7 +124,7 @@ The generated `.qmd` files embed a `schema.org` JSON-LD `Dataset` payload in the
 | `inLanguage` | FEGA Sweden-managed | hard-coded in script | always English: `en` / `English` |
 | `isPartOf.@id` | derived | `study.accession_id` | converted to `http://identifiers.org/ega.study:{accession_id}` |
 | `isPartOf.name` | EGA source | `study.title` | copied from the EGA study title |
-| `creator` | FEGA Sweden enrichment | `--creator` CLI option | required for Researchdata.se export |
+| `creator` | FEGA Sweden enrichment | repeated `--creator` CLI options | required for Researchdata.se export; emitted as one or more creators |
 | `keywords` | FEGA Sweden enrichment | repeated `--keyword` CLI options | included only when one or more keywords are supplied |
 
 Notes:
@@ -135,6 +136,7 @@ Notes:
 -   `includedInDataCatalog` and `sdPublisher` are derived from the export configuration, primarily `--site-base-url`.
 -   Organisation objects omit keys whose values would otherwise be `null`, such as missing `@id` values.
 -   `creator` and `publisher` can now be set independently on the command line.
+-   Repeat `--creator` to include multiple creator organisations in the JSON-LD output.
 -   `--creator` is required because Researchdata.se treats `creator` as mandatory.
 -   `--publisher` is required because Researchdata.se treats `publisher` as mandatory.
 -   `FEGA-SE` can be used as `creator`, but not as `publisher`.

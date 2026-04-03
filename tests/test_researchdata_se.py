@@ -106,13 +106,25 @@ class ResearchDataExportTests(unittest.TestCase):
             'tmp',
         ])
 
-        self.assertEqual(args.creator, 'UU')
+        self.assertEqual(args.creator, ['UU'])
         self.assertEqual(args.publisher, 'LU')
         self.assertEqual(args.keywords, ['genomics', 'reference dataset'])
         self.assertEqual(args.site_base_url, 'https://example.org')
         self.assertEqual(args.sitemap_filename, 'custom-sitemap.xml')
         self.assertEqual(args.study_id, 'EGAS50000000906')
         self.assertEqual(args.output_dir, 'tmp')
+
+    def test_parse_args_accepts_repeated_creators(self) -> None:
+        args = parse_args([
+            '--creator', 'UU',
+            '--creator', 'LU',
+            '--publisher', 'BTB',
+            'EGAS50000000906',
+            'tmp',
+        ])
+
+        self.assertEqual(args.creator, ['UU', 'LU'])
+        self.assertEqual(args.publisher, 'BTB')
 
     def test_parse_args_requires_creator(self) -> None:
         with self.assertRaises(SystemExit):
@@ -151,14 +163,17 @@ class ResearchDataExportTests(unittest.TestCase):
             num_datasets=2,
             study_title='SweGen',
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
-            creator_org='UU',
+            creator_orgs=['UU', 'BTB'],
             publisher_org='LU',
             keywords=['genomics', 'reference dataset'],
         )
 
         self.assertEqual(dataset['identifier'], 'http://identifiers.org/ega.dataset:EGAD50000001323')
         self.assertEqual(dataset['datePublished'], '2024-01-02')
-        self.assertEqual(dataset['creator']['name'], 'Uppsala University')
+        self.assertEqual(
+            [creator['name'] for creator in dataset['creator']],
+            ['Uppsala University', 'The Swedish Childhood Tumor Biobank'],
+        )
         self.assertEqual(dataset['keywords'], ['genomics', 'reference dataset'])
         self.assertEqual(dataset['publisher']['name'], 'Lund University')
         self.assertEqual(dataset['publisher']['@id'], 'https://ror.org/012a77v79')
@@ -182,7 +197,7 @@ class ResearchDataExportTests(unittest.TestCase):
             study_title='SweGen',
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
             num_datasets=2,
-            creator_org='UU',
+            creator_orgs=['UU', 'BTB'],
             publisher_org='LU',
             keywords=['genomics', 'reference dataset'],
         )
@@ -196,7 +211,10 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(normalized.included_in_data_catalog['url'], 'https://fega.nbis.se')
         self.assertEqual(normalized.sd_publisher['url'], 'https://fega.nbis.se')
         self.assertNotIn('@id', normalized.sd_publisher)
-        self.assertEqual(normalized.creator['name'], 'Uppsala University')
+        self.assertEqual(
+            [creator['name'] for creator in normalized.creators],
+            ['Uppsala University', 'The Swedish Childhood Tumor Biobank'],
+        )
         self.assertEqual(normalized.keywords, ['genomics', 'reference dataset'])
         self.assertIn('This dataset is one of 2 datasets', normalized.description)
 
@@ -247,12 +265,12 @@ class ResearchDataExportTests(unittest.TestCase):
                     'released_date': '2024-01-02T03:04:05Z',
                     'description': 'Population-scale whole genome variation.',
                 },
-                num_datasets=1,
-                study_title='SweGen',
-                study_url='http://identifiers.org/ega.study:EGAS50000000906',
-                creator_org='FEGA-SE',
-                publisher_org='FEGA-SE',
-            )
+            num_datasets=1,
+            study_title='SweGen',
+            study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            creator_orgs=['FEGA-SE'],
+            publisher_org='FEGA-SE',
+        )
 
     def test_transform_ega_dataset_uses_export_site_base_url_for_fega_roles(self) -> None:
         dataset = transform_ega_dataset(
@@ -286,13 +304,17 @@ class ResearchDataExportTests(unittest.TestCase):
             num_datasets=1,
             study_title='SweGen',
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
-            creator_org='BTB',
+            creator_orgs=['BTB', 'FEGA-SE'],
             publisher_org='BTB',
         )
 
-        self.assertEqual(dataset['creator']['name'], 'The Swedish Childhood Tumor Biobank')
+        self.assertEqual(
+            [creator['name'] for creator in dataset['creator']],
+            ['The Swedish Childhood Tumor Biobank', 'FEGA Sweden'],
+        )
         self.assertEqual(dataset['publisher']['name'], 'The Swedish Childhood Tumor Biobank')
-        self.assertNotIn('@id', dataset['creator'])
+        self.assertNotIn('@id', dataset['creator'][0])
+        self.assertNotIn('@id', dataset['creator'][1])
         self.assertNotIn('@id', dataset['publisher'])
 
     def test_compose_yaml_front_matter_handles_missing_keywords(self) -> None:
@@ -308,11 +330,13 @@ class ResearchDataExportTests(unittest.TestCase):
             num_datasets=1,
             study_title='Study Alpha',
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
+            creator_orgs=['UU', 'LU'],
             publisher_org='UU',
         )
         front_matter = compose_yaml_front_matter(dataset)
 
         self.assertIn('title: "Dataset: with colon"', front_matter)
+        self.assertIn('author:\n  - "Uppsala University"\n  - "Lund University"', front_matter)
         self.assertIn('categories: []', front_matter)
 
     def test_build_sitemap_entries_sorts_by_location(self) -> None:
@@ -511,6 +535,7 @@ class ResearchDataExportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             args = parse_args([
                 '--creator', 'UU',
+                '--creator', 'LU',
                 '--publisher', 'LU',
                 '--keyword', 'genomics',
                 '--site-base-url', 'https://example.org',
@@ -567,6 +592,7 @@ class ResearchDataExportTests(unittest.TestCase):
                 with redirect_stderr(stderr_buffer):
                     exit_code = main([
                         '--creator', 'UU',
+                        '--creator', 'LU',
                         '--publisher', 'LU',
                         'EGAS50000000906',
                         tmp_dir,

@@ -75,7 +75,7 @@ ResearchDataset = TypedDict('ResearchDataset', {
     'description': str,
     'inLanguage': list[dict[str, str]],
     'isPartOf': dict[str, str],
-    'creator': Organisation,
+    'creator': list[Organisation],
     'keywords': list[str],
 }, total=False)
 
@@ -92,7 +92,7 @@ class NormalizedDatasetMetadata:
     included_in_data_catalog: dict[str, str]
     sd_publisher: dict[str, str | None]
     in_language: list[dict[str, str]]
-    creator: Organisation | None = None
+    creators: list[Organisation] | None = None
     keywords: list[str] | None = None
 
 
@@ -276,6 +276,7 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         '--creator',
         choices=ORGANISATIONS.keys(),
         required=True,
+        action='append',
         help='main organisation that collected the data',
     )
     parser.add_argument(
@@ -318,7 +319,7 @@ def export_study_metadata(args: argparse.Namespace) -> None:
     exported_datasets = export_dataset_files(
         study_context=study_context,
         output_dir=output_dir,
-        creator_org=args.creator,
+        creator_orgs=args.creator,
         publisher_org=args.publisher,
         keywords=args.keywords or [],
         export_config=export_config,
@@ -357,7 +358,7 @@ def ensure_output_dir(output_dir: str) -> Path:
 def export_dataset_files(
     study_context: StudyContext,
     output_dir: Path,
-    creator_org: str | None,
+    creator_orgs: list[str] | None,
     publisher_org: str | None,
     keywords: list[str],
     export_config: ExportConfig,
@@ -371,7 +372,7 @@ def export_dataset_files(
             num_datasets=num_datasets,
             study_title=study_context.title,
             study_url=study_context.url,
-            creator_org=creator_org,
+            creator_orgs=creator_orgs,
             publisher_org=publisher_org,
             keywords=keywords,
             site_base_url=export_config.site_base_url,
@@ -475,7 +476,7 @@ def transform_ega_dataset(
     num_datasets: int,
     study_title: str,
     study_url: str,
-    creator_org: str | None = None,
+    creator_orgs: list[str] | None = None,
     publisher_org: str | None = None,
     keywords: list[str] | None = None,
     site_base_url: str = DEFAULT_SITE_BASE_URL,
@@ -488,7 +489,7 @@ def transform_ega_dataset(
         study_title=study_title,
         study_url=study_url,
         num_datasets=num_datasets,
-        creator_org=creator_org,
+        creator_orgs=creator_orgs,
         publisher_org=publisher_org,
         keywords=keywords,
         site_base_url=site_base_url,
@@ -509,8 +510,8 @@ def transform_ega_dataset(
             'name': normalized.study_title,
         },
     }
-    if normalized.creator:
-        dataset['creator'] = normalized.creator
+    if normalized.creators:
+        dataset['creator'] = normalized.creators
     if normalized.keywords:
         dataset['keywords'] = normalized.keywords
     return dataset
@@ -536,14 +537,14 @@ def normalize_ega_dataset_metadata(
     study_title: str,
     study_url: str,
     num_datasets: int,
-    creator_org: str | None = None,
+    creator_orgs: list[str] | None = None,
     publisher_org: str | None = None,
     keywords: list[str] | None = None,
     site_base_url: str = DEFAULT_SITE_BASE_URL,
 ) -> NormalizedDatasetMetadata:
-    creator = None
-    if creator_org is not None:
-        creator = build_organisation(creator_org)
+    creators = None
+    if creator_orgs is not None:
+        creators = [build_organisation(creator_org) for creator_org in creator_orgs]
     if publisher_org is None:
         raise MetadataValidationError(
             'publisher must be specified for Researchdata.se export'
@@ -571,7 +572,7 @@ def normalize_ega_dataset_metadata(
         included_in_data_catalog=build_fega_data_catalog(site_base_url),
         sd_publisher=build_fega_sd_publisher(site_base_url),
         in_language=[{'@type': 'Language', 'identifier': 'en', 'name': 'English'}],
-        creator=creator,
+        creators=creators,
         keywords=normalized_keywords,
     )
 
@@ -643,9 +644,16 @@ def compose_yaml_front_matter(dataset: ResearchDataset) -> str:
         '---',
         f'title: {yaml_string(dataset["name"])}',
     ]
-    creator_name = dataset.get('creator', {}).get('name')
-    if creator_name:
-        lines.append(f'author: {yaml_string(creator_name)}')
+    creator_names = [
+        creator['name']
+        for creator in dataset.get('creator', [])
+        if creator.get('name')
+    ]
+    if len(creator_names) == 1:
+        lines.append(f'author: {yaml_string(creator_names[0])}')
+    elif creator_names:
+        lines.append('author:')
+        lines.extend(f'  - {yaml_string(creator_name)}' for creator_name in creator_names)
     lines.extend([
         f'date: {yaml_string(dataset["datePublished"])}',
         'description: Dataset',
