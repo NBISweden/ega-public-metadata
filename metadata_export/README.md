@@ -79,6 +79,32 @@ Wrote tmp/EGAD50000001324.qmd
 Wrote tmp/sitemap.xml
 ```
 
+### EGA to schema.org mapping
+
+The generated `.qmd` files embed a `schema.org` JSON-LD `Dataset` payload in the YAML front matter. Documenting the mapping here is a good default, because it keeps the contract close to the export script and makes changes easy to review.
+
+| schema.org field | Source in EGA / script input | Transformation / note |
+| --- | --- | --- |
+| `@context` | hard-coded in script | always `https://schema.org` |
+| `@type` | hard-coded in script | always `Dataset` |
+| `identifier` | `dataset.accession_id` | converted to `http://identifiers.org/ega.dataset:{accession_id}` |
+| `name` | `dataset.title` | trimmed and emitted as dataset title |
+| `publisher` | hard-coded in script | always `FEGA Sweden` |
+| `datePublished` | `dataset.released_date` | parsed from ISO timestamp and normalized to `YYYY-MM-DD` |
+| `description` | `dataset.description` | dataset description plus an appended summary saying which study the dataset belongs to |
+| `inLanguage` | hard-coded in script | always English: `en` / `English` |
+| `isPartOf.@id` | `study.accession_id` | converted to `http://identifiers.org/ega.study:{accession_id}` |
+| `isPartOf.name` | `study.title` | copied from the EGA study title |
+| `creator` | `--creator` CLI option | included only when a specific organisation is supplied; omitted for `unspecified` |
+| `keywords` | repeated `--keyword` CLI options | included only when one or more keywords are supplied |
+
+Notes:
+
+-   The mapping is implemented in `transform_ega_dataset()`.
+-   `identifier` and `isPartOf.@id` are derived identifiers, not values fetched directly from the API payload.
+-   `creator` and `keywords` are enrichment fields added during export, not native EGA metadata fields.
+-   If this mapping grows beyond a dozen rows or starts needing rationale per field, move it to a dedicated section or a separate mapping document and keep a short summary here.
+
 ### Notes
 
 -   Use repeated `--keyword` options for multiple keywords.
