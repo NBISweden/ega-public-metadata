@@ -358,6 +358,23 @@ with preview_col:
             publisher_org=publisher_org,
             site_base_url=site_base_url,
         )
+        download_col, sitemap_download_col = st.columns(2, gap='small')
+        with download_col:
+            st.download_button(
+                'Download Selected QMD',
+                data=preview_file.content,
+                file_name=preview_file.filename,
+                mime='text/markdown',
+                use_container_width=True,
+            )
+        with sitemap_download_col:
+            st.download_button(
+                'Download Sitemap XML',
+                data=artifacts.sitemap_file.content,
+                file_name=artifacts.sitemap_file.filename,
+                mime='application/xml',
+                use_container_width=True,
+            )
 
         preview_tabs = st.tabs(['QMD', 'JSON-LD', 'Sitemap'])
         with preview_tabs[0]:
