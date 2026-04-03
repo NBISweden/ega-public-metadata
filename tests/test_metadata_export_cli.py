@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from metadata_export.researchdata_se import ExportConfig, StudyContext, build_export_project, serialize_export_project
-from metadata_export_app.cli import (
+from metadata_enrichment_app.cli import (
     build_parser,
     main,
     parse_dataset_keyword_assignments,
@@ -122,7 +122,7 @@ class MetadataExportCliTests(unittest.TestCase):
             zip_file = Path(tmp_dir) / 'export.zip'
             stdout_buffer = io.StringIO()
 
-            with patch('metadata_export_app.cli.EGAClient', return_value=fake_client):
+            with patch('metadata_enrichment_app.cli.EGAClient', return_value=fake_client):
                 with redirect_stdout(stdout_buffer):
                     exit_code = main([
                         'fetch',

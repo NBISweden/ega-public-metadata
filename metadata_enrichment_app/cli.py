@@ -34,7 +34,7 @@ from metadata_export_core.core import (
     validate_iso_date_string,
     write_export_artifacts,
 )
-from metadata_export_app.state import build_export_archive_filename, build_project_filename
+from metadata_enrichment_app.state import build_export_archive_filename, build_project_filename
 
 
 def build_parser() -> argparse.ArgumentParser:

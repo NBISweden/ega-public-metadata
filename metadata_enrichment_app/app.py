@@ -36,7 +36,7 @@ from metadata_export_core.core import (
     merge_keywords,
     serialize_export_project,
 )
-from metadata_export_app.state import (
+from metadata_enrichment_app.state import (
     build_export_archive_filename,
     build_export_request_signature,
     build_preview_dataset_from_project,
