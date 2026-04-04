@@ -6,6 +6,20 @@ The app is intended to replace the existing CLI export workflow over time, but t
 
 This folder also contains `metadata_enrichment_app/cli.py`, the command-line interface for FEGA Sweden Metadata Enrichment, which uses the same project model and export core as the Streamlit app.
 
+## Quick start
+
+For a new user, the normal app workflow is:
+
+1. Enter an `EGA Study ID`.
+2. Fetch study metadata from EGA.
+3. Fill in study-level metadata:
+   creators, publisher, and optionally global keywords.
+4. Select the datasets to include and add any dataset-specific keywords that are needed.
+5. Click `Generate Export Files` and review the preview.
+6. Download the generated files you need.
+
+If you already have a saved project JSON, you can also load it directly in the app and continue from the saved state.
+
 ## Features
 
 -   Fetch a study and its datasets from the EGA public metadata API
