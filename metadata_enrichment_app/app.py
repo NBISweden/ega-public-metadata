@@ -122,6 +122,11 @@ if study_context is None:
 
 initialize_dataset_state(study_context, st.session_state)
 initialize_form_state_defaults(st.session_state)
+has_custom_site_settings = (
+    cast(str, st.session_state.get('site_name', DEFAULT_SITE_NAME)).strip() != DEFAULT_SITE_NAME
+    or cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL)).rstrip('/')
+    != DEFAULT_SITE_BASE_URL
+)
 
 summary_col, settings_col = st.columns([1, 2], gap='large')
 
@@ -150,15 +155,20 @@ with settings_col:
         format_func=get_organisation_display_name,
         help='Dataset publisher. FEGA Sweden is intentionally excluded here.',
     )
-    st.text_input(
-        'Site name',
-        key='site_name',
-        help='Used as the name for includedInDataCatalog and sdPublisher.',
+    st.caption(
+        f'Site metadata defaults to `{DEFAULT_SITE_NAME}` at `{DEFAULT_SITE_BASE_URL}`. '
+        'Change it only if this export targets another site.'
     )
-    st.text_input(
-        'Site base URL',
-        key='site_base_url',
-    )
+    with st.expander('Advanced site settings', expanded=has_custom_site_settings):
+        st.text_input(
+            'Site name',
+            key='site_name',
+            help='Used as the name for includedInDataCatalog and sdPublisher.',
+        )
+        st.text_input(
+            'Site base URL',
+            key='site_base_url',
+        )
     st.text_input(
         'Sitemap filename',
         key='sitemap_filename',
