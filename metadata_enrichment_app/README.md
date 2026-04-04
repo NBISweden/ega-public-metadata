@@ -10,13 +10,12 @@ This folder also contains `metadata_enrichment_app/cli.py`, the command-line int
 
 For a new user, the normal app workflow is:
 
-1. Enter an `EGA Study ID`.
-2. Fetch study metadata from EGA.
-3. Fill in study-level metadata:
+1. Enter an `EGA Study ID`, fetch study metadata from EGA, and confirm that the loaded study is correct.
+2. Fill in study-level metadata:
    creators, publisher, and optionally global keywords.
-4. Select the datasets to include and add any dataset-specific keywords that are needed.
-5. Click `Generate Export Files` and review the preview.
-6. Download the generated files you need.
+3. Select the datasets to include and add any dataset-specific keywords that are needed.
+4. Click `Generate Export Files`.
+5. Review the preview and download the generated files you need.
 
 If you already have a saved project JSON, you can also load it directly in the app and continue from the saved state.
 
