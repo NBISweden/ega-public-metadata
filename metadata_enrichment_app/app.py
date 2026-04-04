@@ -58,6 +58,14 @@ from metadata_enrichment_app.state import (
 )
 
 
+def render_workflow_status(step_statuses: list[tuple[str, bool]]) -> None:
+    status_lines = []
+    for step_number, (label, is_complete) in enumerate(step_statuses, start=1):
+        state = 'Complete' if is_complete else 'Pending'
+        status_lines.append(f'{step_number}. **{label}**: {state}')
+    st.markdown('\n'.join(status_lines))
+
+
 st.set_page_config(
     page_title='FEGA Sweden Metadata Enrichment',
     page_icon=':material/data_object:',
@@ -81,9 +89,21 @@ needed for publication, and generate Quarto `.qmd` files together with a sitemap
 project snapshot.
 """
 )
+st.markdown(
+    """
+**Workflow**
+
+1. Enter an EGA Study ID.
+2. Fetch study metadata from EGA.
+3. Fill in study-level metadata.
+4. Select datasets and add keywords where needed.
+5. Generate export files and review the preview.
+6. Download the files you need.
+"""
+)
 
 uploaded_project = st.file_uploader(
-    'Load saved export project',
+    'Optional: Load saved export project',
     type=['json'],
     help='Load a previously saved project snapshot to regenerate or update export files.',
 )
@@ -95,9 +115,11 @@ if uploaded_project is not None:
     except (UnicodeDecodeError, MetadataValidationError, json.JSONDecodeError) as exc:
         st.error(f'Failed to load project file: {exc}')
 
+st.subheader('Step 1. Enter EGA Study ID')
+st.caption('Start with a study accession to fetch its current metadata from EGA.')
 with st.form('study_lookup'):
     study_id = st.text_input('EGA Study ID', placeholder='EGAS50000000906')
-    fetch_clicked = st.form_submit_button('Fetch Study Metadata', use_container_width=True)
+    fetch_clicked = st.form_submit_button('Fetch Study From EGA', use_container_width=True)
 
 if fetch_clicked:
     if not study_id.strip():
@@ -117,7 +139,7 @@ if fetch_clicked:
 study_context = cast(StudyContext | None, st.session_state.get('study_context'))
 
 if study_context is None:
-    st.info('Fetch an EGA study to start editing metadata.')
+    st.info('Steps 2-6 become available after you fetch study metadata from EGA.')
     st.stop()
 
 initialize_dataset_state(study_context, st.session_state)
@@ -131,14 +153,16 @@ has_custom_site_settings = (
 summary_col, settings_col = st.columns([1, 2], gap='large')
 
 with summary_col:
-    st.subheader('Study Summary')
+    st.subheader('Step 2. Review Fetched Study Metadata')
+    st.caption('Confirm that the loaded study and dataset count match what you expect.')
     st.metric('Study ID', st.session_state.get('loaded_study_id', ''))
     st.metric('Datasets', len(study_context.datasets))
     st.markdown(f'**Study title**  \n{study_context.title}')
     st.markdown(f'**Study identifier**  \n`{study_context.url}`')
 
 with settings_col:
-    st.subheader('Study-Level Metadata')
+    st.subheader('Step 3. Fill In Study-Level Metadata')
+    st.caption('Creators and publisher are required. Global keywords are optional but can save time.')
     st.multiselect(
         'Creators',
         options=list(ORGANISATIONS.keys()),
@@ -201,8 +225,9 @@ sitemap_filename = cast(str, st.session_state.get('sitemap_filename', DEFAULT_SI
 sitemap_lastmod = collect_sitemap_lastmod(st.session_state)
 global_keywords = collect_global_keywords(st.session_state)
 
-st.subheader('Dataset-Level Metadata')
+st.subheader('Step 4. Select Datasets And Add Keywords')
 st.caption(
+    'Choose which datasets to include in the export. '
     'Additional keywords can be specified per dataset. '
     'Each selected dataset must end up with at least one keyword from global keywords, '
     'dataset-specific keywords, or both.'
@@ -265,11 +290,26 @@ selected_accessions_missing_keywords = find_selected_accessions_missing_keywords
     selected_accessions,
     effective_dataset_keywords_by_accession,
 )
+artifacts = st.session_state.get('artifacts')
+project = cast(ExportProject | None, st.session_state.get('project'))
+workflow_ready_for_study_metadata = bool(creator_orgs) and publisher_org is not None
+workflow_ready_for_datasets = bool(selected_accessions) and not selected_accessions_missing_keywords
+
+st.subheader('Workflow Status')
+render_workflow_status([
+    ('EGA Study ID entered', bool(st.session_state.get('loaded_study_id'))),
+    ('Study metadata fetched from EGA', study_context is not None),
+    ('Study-level metadata completed', workflow_ready_for_study_metadata),
+    ('Dataset selection and keywords completed', workflow_ready_for_datasets),
+    ('Export files generated', artifacts is not None),
+    ('Preview and downloads ready', artifacts is not None and project is not None),
+])
 
 preview_col, action_col = st.columns([2, 1], gap='large')
 
 with action_col:
-    st.subheader('Generate Export')
+    st.subheader('Step 5. Generate Export')
+    st.caption('Generate export files when all required metadata is in place.')
     validation_message = get_export_validation_message(
         creator_orgs=creator_orgs,
         publisher_org=publisher_org,
@@ -289,7 +329,7 @@ with action_col:
         selected_accessions=selected_accessions,
     )
     generate_clicked = st.button(
-        'Generate export',
+        'Generate Export Files',
         type='primary',
         use_container_width=True,
         disabled=validation_message is not None,
@@ -377,7 +417,8 @@ with action_col:
         )
 
 with preview_col:
-    st.subheader('Preview')
+    st.subheader('Step 6. Preview And Download Files')
+    st.caption('Preview and download options appear after export files have been generated.')
     if not artifacts or project is None:
         st.info('Generate an export to preview the resulting files.')
     else:
