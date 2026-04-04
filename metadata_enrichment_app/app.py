@@ -125,6 +125,13 @@ def rerun_app() -> None:
     st.experimental_rerun()
 
 
+def replace_loaded_study(study_id: str) -> None:
+    fetched_study_context = load_study_context(study_id)
+    clear_study_workflow_state(st.session_state)
+    st.session_state['study_context'] = fetched_study_context
+    st.session_state['loaded_study_id'] = study_id
+
+
 st.set_page_config(
     page_title='FEGA Sweden Metadata Enrichment',
     page_icon=':material/data_object:',
@@ -176,17 +183,60 @@ if fetch_clicked:
     if not study_id.strip():
         st.error('Enter an EGA Study ID first.')
     else:
+        requested_study_id = study_id.strip()
+        loaded_study_id = cast(str | None, st.session_state.get('loaded_study_id'))
+        if loaded_study_id is not None:
+            st.session_state['pending_fetch_study_id'] = requested_study_id
+            st.session_state['pending_fetch_from_study_id'] = loaded_study_id
+        else:
+            try:
+                replace_loaded_study(requested_study_id)
+                rerun_app()
+            except requests.RequestException as exc:
+                st.error(f'Failed to fetch metadata from the EGA API: {exc}')
+            except MetadataValidationError as exc:
+                st.error(f'Metadata validation failed: {exc}')
+            except (KeyError, TypeError, ValueError) as exc:
+                st.error(f'Failed to transform metadata: {exc}')
+
+pending_fetch_study_id = cast(str | None, st.session_state.get('pending_fetch_study_id'))
+pending_fetch_from_study_id = cast(str | None, st.session_state.get('pending_fetch_from_study_id'))
+if pending_fetch_study_id is not None:
+    warning_message = (
+        'Fetching a new study will clear the current study workflow, including creators, '
+        'publisher, keywords, dataset selection, preview, and generated files.'
+    )
+    if pending_fetch_from_study_id:
+        warning_message += f' Current study: `{pending_fetch_from_study_id}`.'
+    warning_message += f' New study: `{pending_fetch_study_id}`.'
+    st.warning(warning_message)
+    confirm_col, cancel_col = st.columns(2, gap='small')
+    with confirm_col:
+        confirm_fetch = st.button(
+            'Continue And Replace Current Study',
+            type='primary',
+            use_container_width=True,
+        )
+    with cancel_col:
+        cancel_fetch = st.button(
+            'Cancel Fetch',
+            use_container_width=True,
+        )
+
+    if confirm_fetch:
         try:
-            fetched_study_context = load_study_context(study_id.strip())
-            clear_study_workflow_state(st.session_state)
-            st.session_state['study_context'] = fetched_study_context
-            st.session_state['loaded_study_id'] = study_id.strip()
+            replace_loaded_study(pending_fetch_study_id)
+            rerun_app()
         except requests.RequestException as exc:
             st.error(f'Failed to fetch metadata from the EGA API: {exc}')
         except MetadataValidationError as exc:
             st.error(f'Metadata validation failed: {exc}')
         except (KeyError, TypeError, ValueError) as exc:
             st.error(f'Failed to transform metadata: {exc}')
+    elif cancel_fetch:
+        st.session_state.pop('pending_fetch_study_id', None)
+        st.session_state.pop('pending_fetch_from_study_id', None)
+        rerun_app()
 
 study_context = cast(StudyContext | None, st.session_state.get('study_context'))
 

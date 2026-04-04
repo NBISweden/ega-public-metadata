@@ -128,6 +128,8 @@ class MetadataExportAppStateTests(unittest.TestCase):
             'project': 'stale',
             'last_generated_signature': 'stale',
             'generate_success_message': 'stale',
+            'pending_fetch_study_id': 'EGAS50000000002',
+            'pending_fetch_from_study_id': 'EGAS50000000001',
             'site_name': 'FEGA Sweden',
             'site_base_url': 'https://fega.nbis.se',
             'sitemap_filename': 'sitemap.xml',
@@ -149,6 +151,8 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertNotIn('project', session_state)
         self.assertNotIn('last_generated_signature', session_state)
         self.assertNotIn('generate_success_message', session_state)
+        self.assertNotIn('pending_fetch_study_id', session_state)
+        self.assertNotIn('pending_fetch_from_study_id', session_state)
         self.assertEqual(session_state['site_name'], 'FEGA Sweden')
         self.assertEqual(session_state['site_base_url'], 'https://fega.nbis.se')
         self.assertEqual(session_state['sitemap_filename'], 'sitemap.xml')

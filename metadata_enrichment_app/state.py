@@ -57,6 +57,8 @@ def clear_study_workflow_state(
     session_state.pop('use_sitemap_lastmod', None)
     session_state.pop('sitemap_lastmod_date', None)
     session_state.pop('generate_success_message', None)
+    session_state.pop('pending_fetch_study_id', None)
+    session_state.pop('pending_fetch_from_study_id', None)
     if not preserve_site_settings:
         session_state.pop('site_name', None)
         session_state.pop('site_base_url', None)
