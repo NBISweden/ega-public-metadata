@@ -1,5 +1,6 @@
 ---
 title: "Dataset B"
+accession: EGAD50000001324
 author:
   - "Uppsala University"
   - "Lund University"

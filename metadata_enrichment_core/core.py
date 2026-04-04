@@ -949,9 +949,11 @@ def compose_sitemap_xml(entries: list[SitemapEntry]) -> str:
 def compose_yaml_front_matter(dataset: ResearchDataset) -> str:
     json_ld_str = json_ld_as_string(dataset)
     json_ld_indented_str = indent_string(json_ld_str)
+    accession_id = extract_accession_id_from_identifier(dataset['identifier'])
     lines = [
         '---',
         f'title: {yaml_string(dataset["name"])}',
+        f'accession: {accession_id}',
     ]
     creator_names = [
         creator['name']
@@ -995,6 +997,12 @@ def json_ld_as_string(dataset: ResearchDataset) -> str:
 
 def yaml_string(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def extract_accession_id_from_identifier(identifier: object) -> str:
+    if not isinstance(identifier, str) or ':' not in identifier:
+        raise MetadataValidationError('Dataset identifier is missing or malformed')
+    return identifier.rsplit(':', 1)[-1]
 
 
 def indent_string(s: str, spaces: int = 8) -> str:

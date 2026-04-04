@@ -448,6 +448,7 @@ class ResearchDataExportTests(unittest.TestCase):
         front_matter = compose_yaml_front_matter(dataset)
 
         self.assertIn('title: "Dataset: with colon"', front_matter)
+        self.assertIn('accession: EGAD50000001323', front_matter)
         self.assertIn('author:\n  - "Uppsala University"\n  - "Lund University"', front_matter)
         self.assertIn('categories:\n  - "genomics"\n  - "reference dataset"', front_matter)
 
