@@ -9,6 +9,7 @@ from metadata_enrichment_app.state import (
     build_preview_dataset_from_project,
     build_project_filename,
     clear_generated_export_state,
+    clear_study_workflow_state,
     collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
     collect_global_keywords,
@@ -111,6 +112,47 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertNotIn('last_generated_signature', session_state)
         self.assertEqual(session_state['other_key'], 'keep')
 
+    def test_clear_study_workflow_state_resets_study_specific_values_but_keeps_site_settings(self) -> None:
+        session_state = {
+            'study_context': 'stale',
+            'loaded_study_id': 'EGAS50000000001',
+            'creator_orgs': ['UU'],
+            'publisher_org': 'LU',
+            'global_keywords_raw': 'genomics',
+            'use_sitemap_lastmod': True,
+            'sitemap_lastmod_date': date(2026, 4, 3),
+            'include_EGAD50000001323': False,
+            'keywords_EGAD50000001323': 'reference cohort',
+            'artifacts': 'stale',
+            'project_json': 'stale',
+            'project': 'stale',
+            'last_generated_signature': 'stale',
+            'generate_success_message': 'stale',
+            'site_name': 'FEGA Sweden',
+            'site_base_url': 'https://fega.nbis.se',
+            'sitemap_filename': 'sitemap.xml',
+        }
+
+        clear_study_workflow_state(session_state)
+
+        self.assertNotIn('study_context', session_state)
+        self.assertNotIn('loaded_study_id', session_state)
+        self.assertNotIn('creator_orgs', session_state)
+        self.assertNotIn('publisher_org', session_state)
+        self.assertNotIn('global_keywords_raw', session_state)
+        self.assertNotIn('use_sitemap_lastmod', session_state)
+        self.assertNotIn('sitemap_lastmod_date', session_state)
+        self.assertNotIn('include_EGAD50000001323', session_state)
+        self.assertNotIn('keywords_EGAD50000001323', session_state)
+        self.assertNotIn('artifacts', session_state)
+        self.assertNotIn('project_json', session_state)
+        self.assertNotIn('project', session_state)
+        self.assertNotIn('last_generated_signature', session_state)
+        self.assertNotIn('generate_success_message', session_state)
+        self.assertEqual(session_state['site_name'], 'FEGA Sweden')
+        self.assertEqual(session_state['site_base_url'], 'https://fega.nbis.se')
+        self.assertEqual(session_state['sitemap_filename'], 'sitemap.xml')
+
     def test_initialize_form_state_defaults_sets_empty_publisher_without_overwriting(self) -> None:
         session_state = {
             'site_base_url': 'https://example.org',
@@ -191,6 +233,8 @@ class MetadataExportAppStateTests(unittest.TestCase):
             'project_json': 'stale',
             'project': 'stale',
             'last_generated_signature': 'stale',
+            'include_EGAD50000009999': True,
+            'keywords_EGAD50000009999': 'stale keyword',
         }
 
         restore_project_to_session_state(project, session_state)
@@ -211,6 +255,8 @@ class MetadataExportAppStateTests(unittest.TestCase):
             session_state['keywords_EGAD50000001324'],
             'reference cohort, whole genome',
         )
+        self.assertNotIn('include_EGAD50000009999', session_state)
+        self.assertNotIn('keywords_EGAD50000009999', session_state)
         self.assertNotIn('artifacts', session_state)
         self.assertNotIn('project_json', session_state)
         self.assertNotIn('project', session_state)

@@ -43,6 +43,33 @@ def clear_generated_export_state(session_state: SessionStateMapping) -> None:
     session_state.pop('last_generated_signature', None)
 
 
+def clear_study_workflow_state(
+    session_state: SessionStateMapping,
+    *,
+    preserve_site_settings: bool = True,
+) -> None:
+    clear_generated_export_state(session_state)
+    session_state.pop('study_context', None)
+    session_state.pop('loaded_study_id', None)
+    session_state.pop('creator_orgs', None)
+    session_state.pop('publisher_org', None)
+    session_state.pop('global_keywords_raw', None)
+    session_state.pop('use_sitemap_lastmod', None)
+    session_state.pop('sitemap_lastmod_date', None)
+    session_state.pop('generate_success_message', None)
+    if not preserve_site_settings:
+        session_state.pop('site_name', None)
+        session_state.pop('site_base_url', None)
+        session_state.pop('sitemap_filename', None)
+
+    dataset_state_keys = [
+        key for key in session_state
+        if key.startswith('include_') or key.startswith('keywords_')
+    ]
+    for key in dataset_state_keys:
+        session_state.pop(key, None)
+
+
 def build_export_request_signature(
     study_id: str,
     creator_orgs: list[str],
@@ -117,6 +144,7 @@ def restore_project_to_session_state(
     project: ExportProject,
     session_state: SessionStateMapping,
 ) -> None:
+    clear_study_workflow_state(session_state, preserve_site_settings=False)
     study_context = project['study_context']
     session_state['study_context'] = study_context
     session_state['loaded_study_id'] = project['study_id']
@@ -132,7 +160,6 @@ def restore_project_to_session_state(
         date.fromisoformat(sitemap_lastmod)
         if sitemap_lastmod is not None else date.today()
     )
-    clear_generated_export_state(session_state)
     initialize_dataset_state(study_context, session_state)
     dataset_state = {
         dataset['accession_id']: dataset

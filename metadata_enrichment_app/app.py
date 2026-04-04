@@ -41,7 +41,7 @@ from metadata_enrichment_app.state import (
     build_export_request_signature,
     build_preview_dataset_from_project,
     build_project_filename,
-    clear_generated_export_state,
+    clear_study_workflow_state,
     collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
     collect_global_keywords,
@@ -166,8 +166,8 @@ generate_success_message = cast(str | None, st.session_state.pop('generate_succe
 if generate_success_message:
     st.success(generate_success_message)
 
-st.subheader('Step 1. Enter EGA Study ID')
-st.caption('Start with a study accession to fetch its current metadata from EGA.')
+st.subheader('Step 1. Fetch Study Metadata')
+st.caption('Start with a study accession and fetch its current metadata from EGA.')
 with st.form('study_lookup'):
     study_id = st.text_input('EGA Study ID', placeholder='EGAS50000000906')
     fetch_clicked = st.form_submit_button('Fetch Study From EGA', use_container_width=True)
@@ -177,8 +177,9 @@ if fetch_clicked:
         st.error('Enter an EGA Study ID first.')
     else:
         try:
-            clear_generated_export_state(st.session_state)
-            st.session_state['study_context'] = load_study_context(study_id.strip())
+            fetched_study_context = load_study_context(study_id.strip())
+            clear_study_workflow_state(st.session_state)
+            st.session_state['study_context'] = fetched_study_context
             st.session_state['loaded_study_id'] = study_id.strip()
         except requests.RequestException as exc:
             st.error(f'Failed to fetch metadata from the EGA API: {exc}')
@@ -192,7 +193,6 @@ study_context = cast(StudyContext | None, st.session_state.get('study_context'))
 if study_context is None:
     render_sidebar_panel(
         step_statuses=[
-        ('Enter an EGA Study ID', bool(study_id.strip())),
         ('Fetch study metadata from EGA', False),
         ('Fill in study-level metadata', False),
         ('Select datasets and add keywords', False),
@@ -201,7 +201,7 @@ if study_context is None:
         ],
         next_step_message='Enter an EGA Study ID and click Fetch Study From EGA.',
     )
-    st.info('Steps 2-6 become available after you fetch study metadata from EGA.')
+    st.info('Steps 2-5 become available after you fetch study metadata from EGA.')
     st.stop()
 
 initialize_dataset_state(study_context, st.session_state)
@@ -271,7 +271,6 @@ elif has_pending_changes:
 
 render_sidebar_panel(
     step_statuses=[
-        ('Enter an EGA Study ID', bool(st.session_state.get('loaded_study_id'))),
         ('Fetch study metadata from EGA', study_context is not None),
         ('Fill in study-level metadata', workflow_ready_for_study_metadata),
         ('Select datasets and add keywords', workflow_ready_for_datasets),
@@ -283,9 +282,8 @@ render_sidebar_panel(
     artifacts=artifacts,
 )
 
-st.divider()
-st.subheader('Step 2. Review Fetched Study Metadata')
-st.caption('Confirm that the loaded study and dataset count match what you expect.')
+st.markdown('**Loaded Study**')
+st.caption('Confirm that the loaded study matches what you expect before continuing.')
 st.markdown(f"**Study ID**  \n`{st.session_state.get('loaded_study_id', '')}`")
 summary_col, details_col = st.columns([1, 2], gap='large')
 with summary_col:
@@ -295,7 +293,7 @@ with details_col:
     st.markdown(f'**Study identifier**  \n`{study_context.url}`')
 
 st.divider()
-st.subheader('Step 3. Fill In Study-Level Metadata')
+st.subheader('Step 2. Fill In Study-Level Metadata')
 st.caption('Creators and publisher are required. Global keywords are optional but can save time.')
 st.multiselect(
     'Creators',
@@ -352,7 +350,7 @@ st.text_area(
 )
 
 st.divider()
-st.subheader('Step 4. Select Datasets And Add Keywords')
+st.subheader('Step 3. Select Datasets And Add Keywords')
 st.caption(
     'Choose which datasets to include in the export. '
     'Additional keywords can be specified per dataset. '
@@ -436,7 +434,7 @@ has_pending_changes = (
 )
 
 st.divider()
-st.subheader('Step 5. Generate Export')
+st.subheader('Step 4. Generate Export')
 st.caption('Generate export files when all required metadata is in place.')
 st.markdown('**Checklist before export**')
 render_export_checklist([
@@ -514,10 +512,10 @@ elif has_pending_changes:
     st.info('Preview and downloads reflect the last generated export. Generate again to update them.')
 
 st.divider()
-st.subheader('Step 6. Preview And Download Files')
+st.subheader('Step 5. Preview And Download Files')
 st.caption('Preview and download options appear after export files have been generated.')
 if not artifacts or project is None:
-    st.info('No export generated yet. Complete steps 1-5 and click Generate Export Files.')
+    st.info('No export generated yet. Complete steps 1-4 and click Generate Export Files.')
 else:
     project_json = cast(str, st.session_state.get('project_json', ''))
     project_filename = build_project_filename(project['study_id'])
