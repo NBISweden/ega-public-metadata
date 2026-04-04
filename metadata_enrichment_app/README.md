@@ -11,7 +11,7 @@ This folder also contains `metadata_enrichment_app/cli.py`, the command-line int
 -   Fetch a study and its datasets from the EGA public metadata API
 -   Set one or more creators at study level
 -   Set a required publisher at study level
--   Set a site name for the catalog and structured metadata publisher
+-   Use FEGA Sweden site metadata defaults, with optional override under advanced settings
 -   Optionally choose a sitemap `lastmod` date for the whole export
 -   Add global keywords for all datasets plus additional keywords per dataset
 -   Include or exclude datasets directly alongside each dataset expander
@@ -95,8 +95,8 @@ The app generates a `schema.org` `Dataset` JSON-LD payload for each exported dat
 | `identifier` | derived | `dataset.accession_id` from EGA | converted to `http://identifiers.org/ega.dataset:{accession_id}` |
 | `name` | EGA source | `dataset.title` from EGA | trimmed and emitted as dataset title |
 | `publisher` | app enrichment | publisher selected in the app | required for Researchdata.se export; FEGA Sweden is not an allowed value |
-| `includedInDataCatalog` | app-managed site metadata | site name and site base URL entered in the app | emitted as a `DataCatalog` for the configured site |
-| `sdPublisher` | app-managed site metadata | site name and site base URL entered in the app | emitted as the configured site as publisher of the structured metadata |
+| `includedInDataCatalog` | app-managed site metadata | FEGA Sweden defaults, optionally overridden in advanced settings | emitted as a `DataCatalog` for the configured site |
+| `sdPublisher` | app-managed site metadata | FEGA Sweden defaults, optionally overridden in advanced settings | emitted as the configured site as publisher of the structured metadata |
 | `datePublished` | derived from EGA source | `dataset.released_date` from EGA | parsed from ISO timestamp and normalized to `YYYY-MM-DD` |
 | `description` | derived from EGA source | `dataset.description` from EGA | dataset description plus an appended summary saying which study the dataset belongs to |
 | `inLanguage` | FEGA Sweden-managed | hard-coded in shared export core | always English: `en` / `English` |
@@ -110,7 +110,7 @@ Notes:
 -   `publisher`, `creator`, and `keywords` are enrichment fields added in the app, not native EGA metadata fields.
 -   The app stores both global keywords and dataset-specific additional keywords in the saved project snapshot.
 -   Preview and downloads are generated from the latest saved export snapshot, not directly from the current unsaved widget state.
--   `includedInDataCatalog` and `sdPublisher` are derived from the app's site name and site base URL settings.
+-   `includedInDataCatalog` and `sdPublisher` are derived from the app's site name and site base URL settings, which default to FEGA Sweden and are only normally changed under advanced settings.
 
 ## Tests and golden files
 
