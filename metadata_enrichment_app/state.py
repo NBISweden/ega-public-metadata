@@ -1,8 +1,6 @@
 """Pure helper functions for Streamlit app state and validation."""
 
 from __future__ import annotations
-
-from datetime import date
 import json
 import re
 
@@ -54,8 +52,6 @@ def clear_study_workflow_state(
     session_state.pop('creator_orgs', None)
     session_state.pop('publisher_org', None)
     session_state.pop('global_keywords_raw', None)
-    session_state.pop('use_sitemap_lastmod', None)
-    session_state.pop('sitemap_lastmod_date', None)
     session_state.pop('generate_success_message', None)
     session_state.pop('pending_fetch_study_id', None)
     session_state.pop('pending_fetch_from_study_id', None)
@@ -114,10 +110,6 @@ def initialize_form_state_defaults(session_state: SessionStateMapping) -> None:
         session_state['site_base_url'] = DEFAULT_SITE_BASE_URL
     if 'sitemap_filename' not in session_state:
         session_state['sitemap_filename'] = DEFAULT_SITEMAP_FILENAME
-    if 'use_sitemap_lastmod' not in session_state:
-        session_state['use_sitemap_lastmod'] = False
-    if 'sitemap_lastmod_date' not in session_state:
-        session_state['sitemap_lastmod_date'] = date.today()
 
 
 def parse_keywords(raw_value: str) -> list[str]:
@@ -156,12 +148,6 @@ def restore_project_to_session_state(
     session_state['site_name'] = project.get('site_name', DEFAULT_SITE_NAME)
     session_state['site_base_url'] = project['site_base_url']
     session_state['sitemap_filename'] = project['sitemap_filename']
-    sitemap_lastmod = project.get('sitemap_lastmod')
-    session_state['use_sitemap_lastmod'] = sitemap_lastmod is not None
-    session_state['sitemap_lastmod_date'] = (
-        date.fromisoformat(sitemap_lastmod)
-        if sitemap_lastmod is not None else date.today()
-    )
     initialize_dataset_state(study_context, session_state)
     dataset_state = {
         dataset['accession_id']: dataset
@@ -206,15 +192,6 @@ def build_preview_dataset_from_project(
 
 def collect_global_keywords(session_state: SessionStateMapping) -> list[str]:
     return parse_keywords(str(session_state.get('global_keywords_raw', '')))
-
-
-def collect_sitemap_lastmod(session_state: SessionStateMapping) -> str | None:
-    if not bool(session_state.get('use_sitemap_lastmod', False)):
-        return None
-    lastmod_date = session_state.get('sitemap_lastmod_date')
-    if isinstance(lastmod_date, date):
-        return lastmod_date.isoformat()
-    return None
 
 
 def collect_selected_accessions(

@@ -1,7 +1,5 @@
 import unittest
 
-from datetime import date
-
 from metadata_export.researchdata_se import ExportConfig, StudyContext, build_export_project
 from metadata_enrichment_app.state import (
     build_export_archive_filename,
@@ -13,7 +11,6 @@ from metadata_enrichment_app.state import (
     collect_effective_dataset_keywords_by_accession,
     collect_dataset_keywords_by_accession,
     collect_global_keywords,
-    collect_sitemap_lastmod,
     collect_selected_accessions,
     find_selected_accessions_missing_keywords,
     get_export_validation_message,
@@ -119,8 +116,6 @@ class MetadataExportAppStateTests(unittest.TestCase):
             'creator_orgs': ['UU'],
             'publisher_org': 'LU',
             'global_keywords_raw': 'genomics',
-            'use_sitemap_lastmod': True,
-            'sitemap_lastmod_date': date(2026, 4, 3),
             'include_EGAD50000001323': False,
             'keywords_EGAD50000001323': 'reference cohort',
             'artifacts': 'stale',
@@ -142,8 +137,6 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertNotIn('creator_orgs', session_state)
         self.assertNotIn('publisher_org', session_state)
         self.assertNotIn('global_keywords_raw', session_state)
-        self.assertNotIn('use_sitemap_lastmod', session_state)
-        self.assertNotIn('sitemap_lastmod_date', session_state)
         self.assertNotIn('include_EGAD50000001323', session_state)
         self.assertNotIn('keywords_EGAD50000001323', session_state)
         self.assertNotIn('artifacts', session_state)
@@ -171,8 +164,6 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(session_state['publisher_org'], 'LU')
         self.assertEqual(session_state['site_base_url'], 'https://example.org')
         self.assertEqual(session_state['sitemap_filename'], 'sitemap.xml')
-        self.assertFalse(session_state['use_sitemap_lastmod'])
-        self.assertIsInstance(session_state['sitemap_lastmod_date'], date)
 
         fresh_session_state = {}
         initialize_form_state_defaults(fresh_session_state)
@@ -180,8 +171,6 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(fresh_session_state['global_keywords_raw'], '')
         self.assertEqual(fresh_session_state['site_name'], 'FEGA Sweden')
         self.assertIsNone(fresh_session_state['publisher_org'])
-        self.assertFalse(fresh_session_state['use_sitemap_lastmod'])
-        self.assertIsInstance(fresh_session_state['sitemap_lastmod_date'], date)
 
     def test_collect_global_keywords_parses_shared_keywords(self) -> None:
         session_state = {'global_keywords_raw': 'genomics\nwhole genome, population genetics'}
@@ -189,15 +178,6 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(
             collect_global_keywords(session_state),
             ['genomics', 'whole genome', 'population genetics'],
-        )
-
-    def test_collect_sitemap_lastmod_returns_iso_date_only_when_enabled(self) -> None:
-        self.assertIsNone(collect_sitemap_lastmod({}))
-        self.assertIsNone(collect_sitemap_lastmod({'use_sitemap_lastmod': False}))
-        self.assertIsNone(collect_sitemap_lastmod({'use_sitemap_lastmod': True, 'sitemap_lastmod_date': None}))
-        self.assertEqual(
-            collect_sitemap_lastmod({'use_sitemap_lastmod': True, 'sitemap_lastmod_date': date(2026, 4, 3)}),
-            '2026-04-03',
         )
 
     def test_initialize_dataset_state_sets_defaults_without_overwriting_existing_values(self) -> None:
@@ -250,8 +230,6 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(session_state['site_name'], 'NBIS Data Portal')
         self.assertEqual(session_state['site_base_url'], 'https://example.org')
         self.assertEqual(session_state['sitemap_filename'], 'catalogue-sitemap.xml')
-        self.assertTrue(session_state['use_sitemap_lastmod'])
-        self.assertEqual(str(session_state['sitemap_lastmod_date']), '2026-04-03')
         self.assertEqual(session_state['include_EGAD50000001323'], False)
         self.assertEqual(session_state['include_EGAD50000001324'], True)
         self.assertEqual(session_state['keywords_EGAD50000001323'], 'population genetics')

@@ -25,7 +25,6 @@ If you already have a saved project JSON, you can also load it directly in the a
 -   Set one or more creators at study level
 -   Set a required publisher at study level
 -   Use FEGA Sweden site metadata defaults, with optional override under advanced settings
--   Optionally choose a sitemap `lastmod` date for the whole export
 -   Add global keywords for all datasets plus additional keywords per dataset
 -   Include or exclude datasets directly alongside each dataset expander
 -   Save a reproducible project snapshot as JSON
