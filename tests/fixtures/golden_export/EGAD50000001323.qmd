@@ -1,9 +1,7 @@
 ---
 title: "Dataset A"
 accession: EGAD50000001323
-author:
-  - "Uppsala University"
-  - "Lund University"
+author: "The Swedish Childhood Tumor Biobank"
 date: "2024-01-02"
 description: Dataset
 categories:

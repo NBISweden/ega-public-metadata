@@ -840,16 +840,10 @@ def compose_yaml_front_matter(dataset: ResearchDataset) -> str:
         f'title: {yaml_string(dataset["name"])}',
         f'accession: {accession_id}',
     ]
-    creator_names = [
-        creator['name']
-        for creator in dataset.get('creator', [])
-        if creator.get('name')
-    ]
-    if len(creator_names) == 1:
-        lines.append(f'author: {yaml_string(creator_names[0])}')
-    elif creator_names:
-        lines.append('author:')
-        lines.extend(f'  - {yaml_string(creator_name)}' for creator_name in creator_names)
+    publisher = dataset.get('publisher', {})
+    publisher_name = publisher.get('name') if isinstance(publisher, dict) else None
+    if publisher_name:
+        lines.append(f'author: {yaml_string(publisher_name)}')
     lines.extend([
         f'date: {yaml_string(dataset["datePublished"])}',
         'description: Dataset',

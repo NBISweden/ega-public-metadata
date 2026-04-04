@@ -441,7 +441,7 @@ class ResearchDataExportTests(unittest.TestCase):
 
         self.assertIn('title: "Dataset: with colon"', front_matter)
         self.assertIn('accession: EGAD50000001323', front_matter)
-        self.assertIn('author:\n  - "Uppsala University"\n  - "Lund University"', front_matter)
+        self.assertIn('author: "Uppsala University"', front_matter)
         self.assertIn('categories:\n  - "genomics"\n  - "reference dataset"', front_matter)
 
     def test_build_export_artifacts_supports_dataset_specific_keywords(self) -> None:
