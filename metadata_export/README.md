@@ -31,9 +31,8 @@ python3 -m pip install requests
 ./researchdata_se.py -h
 usage: researchdata [-h] [-V] --creator {FEGA-SE,LiU,LU,UU,BTB}
                     --publisher {LiU,LU,UU,BTB}
-                    --keyword KEYWORD [--site-base-url SITE_BASE_URL]
-                    [--sitemap-filename SITEMAP_FILENAME]
-                    study_id output_dir
+                    --keyword KEYWORD [--site-base-url SITE_BASE_URL] study_id
+                    output_dir
 
 A command-line utility for preparing FEGA Sweden metadata for researchdata.se
 
@@ -51,8 +50,6 @@ options:
   --keyword KEYWORD     keyword describing the dataset; repeat the option for multiple keywords
   --site-base-url SITE_BASE_URL
                         base URL for generated dataset landing pages
-  --sitemap-filename SITEMAP_FILENAME
-                        filename for the generated sitemap XML
 ```
 
 ### Example
@@ -74,14 +71,12 @@ options:
 The script writes:
 
 -   one `.qmd` file per dataset accession to `output_dir`
--   a complete sitemap file, by default `sitemap.xml`, in the same directory
 
 Example output:
 
 ``` text
 Wrote tmp/EGAD50000001323.qmd
 Wrote tmp/EGAD50000001324.qmd
-Wrote tmp/sitemap.xml
 ```
 
 ### Metadata layers
@@ -146,8 +141,7 @@ Notes:
 ### Notes
 
 -   Use repeated `--keyword` options for multiple keywords.
--   `--site-base-url` lets you change the base URL used for generated landing-page links in the sitemap.
--   `--sitemap-filename` lets you override the default `sitemap.xml` filename.
+-   `--site-base-url` lets you change the base URL used for generated dataset landing-page links in the structured metadata.
 -   The script validates required study and dataset fields and reports validation errors with accession-specific messages when metadata is missing or malformed.
 -   Related datasets are fetched with pagination support, so studies with many datasets can be exported without manual paging.
 
@@ -163,6 +157,6 @@ The current test coverage includes:
 
 -   validation and transformation tests for the shared export core
 -   parity tests that compare CLI output with core-generated artifacts for the same input
--   golden-output fixtures under `tests/fixtures/golden_export/` that lock representative `.qmd` and sitemap content
+-   golden-output fixtures under `tests/fixtures/golden_export/` that lock representative `.qmd` content
 
 If you intentionally change the generated output format, update the corresponding fixture files in `tests/fixtures/golden_export/` and rerun the test suite before committing.

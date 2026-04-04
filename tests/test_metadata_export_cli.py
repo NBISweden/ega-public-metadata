@@ -55,7 +55,6 @@ class MetadataExportCliTests(unittest.TestCase):
             '--include-dataset', 'EGAD50000001323',
             '--site-name', 'NBIS Data Portal',
             '--site-base-url', 'https://example.org',
-            '--sitemap-lastmod', '2026-04-03',
             '--project-file', 'project.json',
             '--zip-file', 'export.zip',
         ])
@@ -69,7 +68,6 @@ class MetadataExportCliTests(unittest.TestCase):
         self.assertEqual(args.include_accessions, ['EGAD50000001323'])
         self.assertEqual(args.site_name, 'NBIS Data Portal')
         self.assertEqual(args.site_base_url, 'https://example.org')
-        self.assertEqual(args.sitemap_lastmod, '2026-04-03')
 
     def test_parse_dataset_keyword_assignments_groups_keywords_by_accession(self) -> None:
         self.assertEqual(
@@ -135,7 +133,6 @@ class MetadataExportCliTests(unittest.TestCase):
                         '--exclude-dataset', 'EGAD50000001323',
                         '--site-name', 'NBIS Data Portal',
                         '--site-base-url', 'https://example.org',
-                        '--sitemap-lastmod', '2026-04-03',
                         '--project-file', str(project_file),
                         '--zip-file', str(zip_file),
                     ])
@@ -143,20 +140,15 @@ class MetadataExportCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertEqual(
                 sorted(path.name for path in output_dir.iterdir()),
-                ['EGAD50000001324.qmd', 'sitemap.xml'],
+                ['EGAD50000001324.qmd'],
             )
             self.assertTrue(project_file.exists())
             self.assertTrue(zip_file.exists())
             self.assertIn('NBIS Data Portal', (output_dir / 'EGAD50000001324.qmd').read_text(encoding='utf-8'))
-            self.assertIn('<lastmod>2026-04-03</lastmod>', (output_dir / 'sitemap.xml').read_text(encoding='utf-8'))
             with zipfile.ZipFile(zip_file) as archive:
                 self.assertEqual(
                     sorted(archive.namelist()),
-                    [
-                        'EGAD50000001324.qmd',
-                        'fega-sweden-metadata-project-EGAS50000000906.json',
-                        'sitemap.xml',
-                    ],
+                    ['EGAD50000001324.qmd'],
                 )
             self.assertIn(f'Wrote {project_file}', stdout_buffer.getvalue())
 
@@ -181,8 +173,6 @@ class MetadataExportCliTests(unittest.TestCase):
             export_config=ExportConfig(
                 site_name='NBIS Data Portal',
                 site_base_url='https://example.org',
-                sitemap_filename='catalogue-sitemap.xml',
-                sitemap_lastmod='2026-04-03',
             ),
             global_keywords=['genomics'],
             dataset_keywords_by_accession={'EGAD50000001323': ['reference cohort']},
@@ -204,5 +194,4 @@ class MetadataExportCliTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertTrue((output_dir / 'EGAD50000001323.qmd').exists())
-            self.assertTrue((output_dir / 'catalogue-sitemap.xml').exists())
             self.assertEqual(stderr_buffer.getvalue(), '')

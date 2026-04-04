@@ -1,7 +1,6 @@
 import io
 import tempfile
 import unittest
-import xml.etree.ElementTree as ET
 import zipfile
 
 from contextlib import redirect_stderr, redirect_stdout
@@ -11,7 +10,6 @@ from unittest.mock import patch
 from metadata_export.researchdata_se import (
     EGAClient,
     ExportConfig,
-    ExportedDataset,
     GeneratedFile,
     MetadataValidationError,
     StudyContext,
@@ -19,9 +17,7 @@ from metadata_export.researchdata_se import (
     build_export_artifacts_from_project,
     build_export_project,
     build_export_zip_bytes,
-    build_sitemap_entries,
     compose_markdown,
-    compose_sitemap_xml,
     compose_yaml_front_matter,
     deserialize_export_project,
     export_study_metadata,
@@ -33,11 +29,9 @@ from metadata_export.researchdata_se import (
     validate_ega_dataset,
     validate_ega_study,
     transform_ega_dataset,
-    write_sitemap_file,
 )
 
 
-SITEMAP_XMLNS = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
 GOLDEN_EXPORT_DIR = Path(__file__).resolve().parent / 'fixtures' / 'golden_export'
 
 
@@ -114,7 +108,6 @@ class ResearchDataExportTests(unittest.TestCase):
             '--keyword', 'genomics',
             '--keyword', 'reference dataset',
             '--site-base-url', 'https://example.org',
-            '--sitemap-filename', 'custom-sitemap.xml',
             'EGAS50000000906',
             'tmp',
         ])
@@ -123,7 +116,6 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(args.publisher, 'LU')
         self.assertEqual(args.keywords, ['genomics', 'reference dataset'])
         self.assertEqual(args.site_base_url, 'https://example.org')
-        self.assertEqual(args.sitemap_filename, 'custom-sitemap.xml')
         self.assertEqual(args.study_id, 'EGAS50000000906')
         self.assertEqual(args.output_dir, 'tmp')
 
@@ -452,40 +444,6 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertIn('author:\n  - "Uppsala University"\n  - "Lund University"', front_matter)
         self.assertIn('categories:\n  - "genomics"\n  - "reference dataset"', front_matter)
 
-    def test_build_sitemap_entries_sorts_by_location(self) -> None:
-        entries = build_sitemap_entries([
-            ExportedDataset(
-                accession_id='EGAD2',
-                date_published='2024-01-02',
-                file_path=Path('/tmp/EGAD2.qmd'),
-                page_url='https://example.org/catalogue/datasets/EGAD2.html',
-            ),
-            ExportedDataset(
-                accession_id='EGAD1',
-                date_published='2024-01-01',
-                file_path=Path('/tmp/EGAD1.qmd'),
-                page_url='https://example.org/catalogue/datasets/EGAD1.html',
-            ),
-        ])
-
-        self.assertEqual([entry.loc for entry in entries], [
-            'https://example.org/catalogue/datasets/EGAD1.html',
-            'https://example.org/catalogue/datasets/EGAD2.html',
-        ])
-        self.assertEqual([entry.lastmod for entry in entries], [None, None])
-
-    def test_build_sitemap_entries_uses_explicit_lastmod_when_provided(self) -> None:
-        entries = build_sitemap_entries([
-            ExportedDataset(
-                accession_id='EGAD1',
-                date_published='2024-01-01',
-                file_path=Path('/tmp/EGAD1.qmd'),
-                page_url='https://example.org/catalogue/datasets/EGAD1.html',
-            ),
-        ], sitemap_lastmod='2026-04-03')
-
-        self.assertEqual(entries[0].lastmod, '2026-04-03')
-
     def test_build_export_artifacts_supports_dataset_specific_keywords(self) -> None:
         study_context = StudyContext(
             title='SweGen',
@@ -513,8 +471,6 @@ class ResearchDataExportTests(unittest.TestCase):
             export_config=ExportConfig(
                 site_name='NBIS Data Portal',
                 site_base_url='https://example.org',
-                sitemap_filename='catalogue-sitemap.xml',
-                sitemap_lastmod='2026-04-03',
             ),
             dataset_keywords_by_accession={
                 'EGAD50000001323': ['population genetics'],
@@ -535,18 +491,13 @@ class ResearchDataExportTests(unittest.TestCase):
             'categories:\n  - "reference cohort"\n  - "whole genome"',
             artifacts.dataset_files[1].content,
         )
-        self.assertIn(
-            '<loc>https://example.org/catalogue/datasets/EGAD50000001323.html</loc>',
-            artifacts.sitemap_file.content,
-        )
-        self.assertIn('<lastmod>2026-04-03</lastmod>', artifacts.sitemap_file.content)
         self.assertIn('"name": "NBIS Data Portal"', artifacts.dataset_files[0].content)
 
         zip_bytes = build_export_zip_bytes(artifacts)
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as archive:
             self.assertEqual(
                 sorted(archive.namelist()),
-                ['EGAD50000001323.qmd', 'EGAD50000001324.qmd', 'catalogue-sitemap.xml'],
+                ['EGAD50000001323.qmd', 'EGAD50000001324.qmd'],
             )
 
         zip_bytes_with_project = build_export_zip_bytes(
@@ -564,7 +515,6 @@ class ResearchDataExportTests(unittest.TestCase):
                 [
                     'EGAD50000001323.qmd',
                     'EGAD50000001324.qmd',
-                    'catalogue-sitemap.xml',
                     'fega-sweden-metadata-project-EGAS50000000906.json',
                 ],
             )
@@ -594,7 +544,6 @@ class ResearchDataExportTests(unittest.TestCase):
                 export_config=ExportConfig(
                     site_name='FEGA Sweden',
                     site_base_url='https://example.org',
-                    sitemap_filename='catalogue-sitemap.xml',
                 ),
                 dataset_keywords_by_accession={'EGAD50000001323': []},
                 selected_accessions={'EGAD50000001323'},
@@ -627,8 +576,6 @@ class ResearchDataExportTests(unittest.TestCase):
             export_config=ExportConfig(
                 site_name='NBIS Data Portal',
                 site_base_url='https://example.org',
-                sitemap_filename='catalogue-sitemap.xml',
-                sitemap_lastmod='2026-04-03',
             ),
             global_keywords=['genomics'],
             dataset_keywords_by_accession={
@@ -647,7 +594,6 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(restored_project['publisher_org'], 'BTB')
         self.assertEqual(restored_project['global_keywords'], ['genomics'])
         self.assertEqual(restored_project['site_name'], 'NBIS Data Portal')
-        self.assertEqual(restored_project['sitemap_lastmod'], '2026-04-03')
         self.assertEqual(
             restored_project['datasets'],
             [
@@ -693,7 +639,6 @@ class ResearchDataExportTests(unittest.TestCase):
           "creator_orgs": ["UU"],
           "publisher_org": "LU",
           "site_base_url": "https://example.org",
-          "sitemap_filename": "catalogue-sitemap.xml",
           "datasets": [
             {
               "accession_id": "EGAD50000001323",
@@ -737,7 +682,6 @@ class ResearchDataExportTests(unittest.TestCase):
             export_config=ExportConfig(
                 site_name='FEGA Sweden',
                 site_base_url='https://example.org',
-                sitemap_filename='catalogue-sitemap.xml',
             ),
             dataset_keywords_by_accession={
                 'EGAD50000001323': ['population genetics'],
@@ -750,54 +694,13 @@ class ResearchDataExportTests(unittest.TestCase):
             dataset_file.filename: dataset_file.content
             for dataset_file in artifacts.dataset_files
         }
-        actual_files[artifacts.sitemap_file.filename] = artifacts.sitemap_file.content
         expected_files = {
             fixture_path.name: fixture_path.read_text(encoding='utf-8')
             for fixture_path in GOLDEN_EXPORT_DIR.iterdir()
-            if fixture_path.is_file()
+            if fixture_path.is_file() and fixture_path.suffix == '.qmd'
         }
 
         self.assertEqual(actual_files, expected_files)
-
-    def test_write_sitemap_file_writes_complete_document(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            sitemap_path = Path(tmp_dir) / 'sitemap.xml'
-            entries = build_sitemap_entries([
-                ExportedDataset(
-                    accession_id='EGAD50000001323',
-                    date_published='2024-01-02',
-                    file_path=Path(tmp_dir) / 'EGAD50000001323.qmd',
-                    page_url='https://example.org/catalogue/datasets/EGAD50000001323.html',
-                ),
-            ], sitemap_lastmod='2026-04-03')
-
-            write_sitemap_file(sitemap_path, entries)
-
-            document = ET.parse(sitemap_path)
-            locations = document.findall('.//sm:loc', SITEMAP_XMLNS)
-            last_modified = document.findall('.//sm:lastmod', SITEMAP_XMLNS)
-
-            self.assertEqual(len(locations), 1)
-            self.assertEqual(
-                locations[0].text,
-                'https://example.org/catalogue/datasets/EGAD50000001323.html',
-            )
-            self.assertEqual(last_modified[0].text, '2026-04-03')
-
-    def test_compose_sitemap_xml_omits_lastmod_when_not_provided(self) -> None:
-        entries = build_sitemap_entries([
-            ExportedDataset(
-                accession_id='EGAD50000001323',
-                date_published='2024-01-02',
-                file_path=Path('/tmp/EGAD50000001323.qmd'),
-                page_url='https://example.org/catalogue/datasets/EGAD50000001323.html',
-            ),
-        ])
-
-        sitemap_xml = compose_sitemap_xml(entries)
-
-        self.assertIn('<loc>https://example.org/catalogue/datasets/EGAD50000001323.html</loc>', sitemap_xml)
-        self.assertNotIn('<lastmod>', sitemap_xml)
 
     def test_get_related_entities_fetches_all_pages(self) -> None:
         fake_session = FakeSession([
@@ -925,7 +828,7 @@ class ResearchDataExportTests(unittest.TestCase):
                 keywords=['genomics'],
             )
 
-    def test_export_study_metadata_writes_dataset_files_and_sitemap_with_mocked_client(self) -> None:
+    def test_export_study_metadata_writes_dataset_files_with_mocked_client(self) -> None:
         fake_client = FakeAPIClient(
             study_payload={
                 'accession_id': 'EGAS50000000906',
@@ -954,7 +857,6 @@ class ResearchDataExportTests(unittest.TestCase):
                 '--publisher', 'LU',
                 '--keyword', 'genomics',
                 '--site-base-url', 'https://example.org',
-                '--sitemap-filename', 'catalogue-sitemap.xml',
                 'EGAS50000000906',
                 tmp_dir,
             ])
@@ -965,25 +867,13 @@ class ResearchDataExportTests(unittest.TestCase):
                     export_study_metadata(args)
 
             dataset_file = Path(tmp_dir) / 'EGAD50000001323.qmd'
-            sitemap_file = Path(tmp_dir) / 'catalogue-sitemap.xml'
 
             self.assertTrue(dataset_file.exists())
-            self.assertTrue(sitemap_file.exists())
             self.assertIn('Dataset A', dataset_file.read_text(encoding='utf-8'))
             self.assertIn('categories:\n  - "genomics"', dataset_file.read_text(encoding='utf-8'))
 
-            document = ET.parse(sitemap_file)
-            locations = [
-                node.text for node in document.findall('.//sm:loc', SITEMAP_XMLNS)
-            ]
-            self.assertEqual(locations, [
-                'https://example.org/catalogue/datasets/EGAD50000001323.html',
-                'https://example.org/catalogue/datasets/EGAD50000001324.html',
-            ])
-
             stdout_value = stdout_buffer.getvalue()
             self.assertIn(f'Wrote {Path(tmp_dir) / "EGAD50000001323.qmd"}', stdout_value)
-            self.assertIn(f'Wrote {Path(tmp_dir) / "catalogue-sitemap.xml"}', stdout_value)
 
     def test_main_matches_core_export_artifacts_for_same_input(self) -> None:
         study_payload = {
@@ -1018,7 +908,6 @@ class ResearchDataExportTests(unittest.TestCase):
             export_config=ExportConfig(
                 site_name='FEGA Sweden',
                 site_base_url='https://example.org',
-                sitemap_filename='catalogue-sitemap.xml',
             ),
             default_keywords=['genomics'],
         )
@@ -1038,7 +927,6 @@ class ResearchDataExportTests(unittest.TestCase):
                         '--publisher', 'BTB',
                         '--keyword', 'genomics',
                         '--site-base-url', 'https://example.org',
-                        '--sitemap-filename', 'catalogue-sitemap.xml',
                         'EGAS50000000906',
                         tmp_dir,
                     ])
@@ -1046,7 +934,7 @@ class ResearchDataExportTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertEqual(
                 sorted(path.name for path in Path(tmp_dir).iterdir()),
-                ['EGAD50000001323.qmd', 'EGAD50000001324.qmd', 'catalogue-sitemap.xml'],
+                ['EGAD50000001323.qmd', 'EGAD50000001324.qmd'],
             )
 
             actual_files = {
@@ -1057,9 +945,6 @@ class ResearchDataExportTests(unittest.TestCase):
                 dataset_file.filename: dataset_file.content
                 for dataset_file in expected_artifacts.dataset_files
             }
-            expected_files[expected_artifacts.sitemap_file.filename] = (
-                expected_artifacts.sitemap_file.content
-            )
 
             self.assertEqual(actual_files, expected_files)
 

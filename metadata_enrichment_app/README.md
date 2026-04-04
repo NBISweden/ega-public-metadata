@@ -1,6 +1,6 @@
 # metadata-enrichment-app
 
-This folder contains FEGA Sweden Metadata Enrichment, a Streamlit app for interactively enriching FEGA Sweden metadata and exporting it to Quarto `.qmd` files and a sitemap file.
+This folder contains FEGA Sweden Metadata Enrichment, a Streamlit app for interactively enriching FEGA Sweden metadata and exporting it to Quarto `.qmd` files.
 
 The app is intended to replace the existing CLI export workflow over time, but the CLI script in `metadata_export/researchdata_se.py` is still kept as a reference path while the app is being validated.
 
@@ -30,8 +30,8 @@ If you already have a saved project JSON, you can also load it directly in the a
 -   Save a reproducible project snapshot as JSON
 -   Load a saved project snapshot and continue editing
 -   Preview generated `qmd` and `schema.org` JSON-LD
--   Download an individual generated dataset file or the sitemap directly from the preview
--   Download a zip archive containing dataset files, sitemap, and the saved project JSON, with study ID in the filename
+-   Download an individual generated dataset file directly from the preview
+-   Download a zip archive containing dataset files, with study ID in the filename
 
 The app generates preview and download artifacts when you explicitly click `Generate export`. If you change metadata afterwards, the app keeps showing the last generated snapshot until you generate again.
 

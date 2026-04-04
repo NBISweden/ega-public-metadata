@@ -30,7 +30,7 @@ The Researchdata.se export flow is currently validated in three ways:
 
 * shared core logic used by both the CLI and the Streamlit app
 * parity tests that compare CLI output with the shared core output for the same input
-* golden-output fixtures under `tests/fixtures/golden_export/` that lock representative `.qmd` and sitemap output
+* golden-output fixtures under `tests/fixtures/golden_export/` that lock representative `.qmd` output
 
 Run the export tests from the repository root:
 

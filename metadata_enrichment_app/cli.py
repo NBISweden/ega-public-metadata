@@ -17,10 +17,8 @@ if str(REPOSITORY_ROOT) not in sys.path:
 from metadata_enrichment_core.core import (
     DEFAULT_SITE_BASE_URL,
     DEFAULT_SITE_NAME,
-    DEFAULT_SITEMAP_FILENAME,
     EGAClient,
     ExportConfig,
-    GeneratedFile,
     MetadataValidationError,
     ORGANISATIONS,
     PUBLISHER_ORGANISATIONS,
@@ -31,10 +29,8 @@ from metadata_enrichment_core.core import (
     ensure_output_dir,
     fetch_study_context,
     serialize_export_project,
-    validate_iso_date_string,
     write_export_artifacts,
 )
-from metadata_enrichment_app.state import build_export_archive_filename, build_project_filename
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,10 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     fetch_parser = subparsers.add_parser(
         'fetch',
-        help='Fetch an EGA study, enrich metadata, and export qmd files plus sitemap.',
+        help='Fetch an EGA study, enrich metadata, and export qmd files.',
     )
     fetch_parser.add_argument('study_id', help='EGA Study accession number')
-    fetch_parser.add_argument('output_dir', help='Directory where qmd files and sitemap should be written')
+    fetch_parser.add_argument('output_dir', help='Directory where qmd files should be written')
     fetch_parser.add_argument(
         '--creator',
         choices=ORGANISATIONS.keys(),
@@ -106,21 +102,12 @@ def build_parser() -> argparse.ArgumentParser:
         help='Base URL used for generated dataset landing-page links',
     )
     fetch_parser.add_argument(
-        '--sitemap-filename',
-        default=DEFAULT_SITEMAP_FILENAME,
-        help='Filename for the generated sitemap XML',
-    )
-    fetch_parser.add_argument(
-        '--sitemap-lastmod',
-        help='Optional YYYY-MM-DD value used for sitemap <lastmod>',
-    )
-    fetch_parser.add_argument(
         '--project-file',
         help='Optional path where the generated project snapshot JSON should be written',
     )
     fetch_parser.add_argument(
         '--zip-file',
-        help='Optional path where an export archive containing qmd files, sitemap, and project JSON should be written',
+        help='Optional path where an export archive containing qmd files should be written',
     )
 
     project_parser = subparsers.add_parser(
@@ -128,10 +115,10 @@ def build_parser() -> argparse.ArgumentParser:
         help='Regenerate export artifacts from a saved project snapshot JSON file.',
     )
     project_parser.add_argument('project_file', help='Saved project snapshot JSON file')
-    project_parser.add_argument('output_dir', help='Directory where qmd files and sitemap should be written')
+    project_parser.add_argument('output_dir', help='Directory where qmd files should be written')
     project_parser.add_argument(
         '--zip-file',
-        help='Optional path where an export archive containing qmd files, sitemap, and project JSON should be written',
+        help='Optional path where an export archive containing qmd files should be written',
     )
 
     return parser
@@ -185,10 +172,6 @@ def write_bytes_file(path_str: str, content: bytes) -> None:
 
 
 def run_fetch_command(args: argparse.Namespace) -> None:
-    sitemap_lastmod = None
-    if args.sitemap_lastmod:
-        sitemap_lastmod = validate_iso_date_string(args.sitemap_lastmod, 'sitemap_lastmod')
-
     with EGAClient() as client:
         study_context = fetch_study_context(client, args.study_id)
 
@@ -209,8 +192,6 @@ def run_fetch_command(args: argparse.Namespace) -> None:
     export_config = ExportConfig(
         site_name=args.site_name.strip() or DEFAULT_SITE_NAME,
         site_base_url=args.site_base_url.rstrip('/'),
-        sitemap_filename=args.sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
-        sitemap_lastmod=sitemap_lastmod,
     )
     project = build_export_project(
         study_id=args.study_id,
@@ -231,15 +212,7 @@ def run_fetch_command(args: argparse.Namespace) -> None:
     if args.project_file:
         write_text_file(args.project_file, project_json)
     if args.zip_file:
-        zip_bytes = build_export_zip_bytes(
-            artifacts,
-            extra_files=[
-                GeneratedFile(
-                    filename=build_project_filename(project['study_id']),
-                    content=project_json,
-                )
-            ],
-        )
+        zip_bytes = build_export_zip_bytes(artifacts)
         write_bytes_file(args.zip_file, zip_bytes)
 
 
@@ -253,15 +226,7 @@ def run_project_command(args: argparse.Namespace) -> None:
     write_export_artifacts(output_dir, artifacts)
 
     if args.zip_file:
-        zip_bytes = build_export_zip_bytes(
-            artifacts,
-            extra_files=[
-                GeneratedFile(
-                    filename=build_project_filename(project['study_id']),
-                    content=project_json,
-                )
-            ],
-        )
+        zip_bytes = build_export_zip_bytes(artifacts)
         write_bytes_file(args.zip_file, zip_bytes)
 
 

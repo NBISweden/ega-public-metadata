@@ -7,7 +7,6 @@ import io
 import json
 import sys
 import textwrap
-import xml.etree.ElementTree as ET
 import zipfile
 
 from dataclasses import asdict, dataclass, is_dataclass
@@ -24,8 +23,6 @@ DEFAULT_TIMEOUT = 30
 DEFAULT_PAGE_SIZE = 100
 DEFAULT_SITE_BASE_URL = 'https://fega.nbis.se'
 DEFAULT_SITE_NAME = 'FEGA Sweden'
-DEFAULT_SITEMAP_FILENAME = 'sitemap.xml'
-SITEMAP_XMLNS = 'http://www.sitemaps.org/schemas/sitemap/0.9'
 
 
 ORGANISATIONS = {
@@ -128,33 +125,14 @@ ExportProject = TypedDict(
         'global_keywords': list[str],
         'site_name': str,
         'site_base_url': str,
-        'sitemap_filename': str,
-        'sitemap_lastmod': str | None,
         'datasets': list[ExportProjectDataset],
     },
 )
-
-
-@dataclass(frozen=True)
-class ExportedDataset:
-    accession_id: str
-    date_published: str
-    file_path: Path
-    page_url: str
-
-
-@dataclass(frozen=True)
-class SitemapEntry:
-    loc: str
-    lastmod: str | None
-
 
 @dataclass(frozen=True)
 class ExportConfig:
     site_name: str
     site_base_url: str
-    sitemap_filename: str
-    sitemap_lastmod: str | None = None
 
 
 @dataclass(frozen=True)
@@ -166,7 +144,6 @@ class GeneratedFile:
 @dataclass(frozen=True)
 class ExportArtifacts:
     dataset_files: list[GeneratedFile]
-    sitemap_file: GeneratedFile
 
 
 PROJECT_SCHEMA_VERSION = 3
@@ -348,11 +325,6 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         default=DEFAULT_SITE_BASE_URL,
         help='base URL for generated dataset landing pages',
     )
-    parser.add_argument(
-        '--sitemap-filename',
-        default=DEFAULT_SITEMAP_FILENAME,
-        help='filename for the generated sitemap XML',
-    )
     parser.add_argument('study_id', type=str, help='EGA Study accession number')
     parser.add_argument('output_dir', type=str, help='Path to the output directory')
 
@@ -363,7 +335,6 @@ def export_study_metadata(args: argparse.Namespace) -> None:
     export_config = ExportConfig(
         site_name=DEFAULT_SITE_NAME,
         site_base_url=args.site_base_url.rstrip('/'),
-        sitemap_filename=args.sitemap_filename,
     )
     with EGAClient() as client:
         study_context = fetch_study_context(client, args.study_id)
@@ -409,8 +380,6 @@ def build_export_project(
         global_keywords=list(global_keywords or []),
         site_name=export_config.site_name,
         site_base_url=export_config.site_base_url,
-        sitemap_filename=export_config.sitemap_filename,
-        sitemap_lastmod=export_config.sitemap_lastmod,
         datasets=datasets,
     )
 
@@ -456,20 +425,6 @@ def deserialize_export_project(project_json: str) -> ExportProject:
     ]
     site_name = require_non_empty_string(payload.get('site_name'), 'site_name', 'project file')
     site_base_url = require_non_empty_string(payload.get('site_base_url'), 'site_base_url', 'project file')
-    sitemap_filename = require_non_empty_string(
-        payload.get('sitemap_filename'),
-        'sitemap_filename',
-        'project file',
-    )
-    if 'sitemap_lastmod' not in payload:
-        raise MetadataValidationError('Project file is missing sitemap_lastmod')
-    raw_sitemap_lastmod = payload.get('sitemap_lastmod')
-    sitemap_lastmod = None
-    if raw_sitemap_lastmod is not None:
-        sitemap_lastmod = validate_iso_date_string(
-            require_non_empty_string(raw_sitemap_lastmod, 'sitemap_lastmod', 'project file'),
-            'sitemap_lastmod',
-        )
     raw_study_context = payload.get('study_context')
     if not isinstance(raw_study_context, dict):
         raise MetadataValidationError('Project file is missing study_context')
@@ -518,8 +473,6 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         global_keywords=global_keywords,
         site_name=site_name,
         site_base_url=site_base_url,
-        sitemap_filename=sitemap_filename,
-        sitemap_lastmod=sitemap_lastmod,
         datasets=project_datasets,
     )
 
@@ -532,8 +485,6 @@ def build_export_artifacts_from_project(project: ExportProject) -> ExportArtifac
         export_config=ExportConfig(
             site_name=project['site_name'],
             site_base_url=project['site_base_url'],
-            sitemap_filename=project['sitemap_filename'],
-            sitemap_lastmod=project['sitemap_lastmod'],
         ),
         default_keywords=project['global_keywords'],
         dataset_keywords_by_accession={
@@ -582,7 +533,6 @@ def build_export_artifacts(
     selected_accessions: set[str] | None = None,
 ) -> ExportArtifacts:
     num_datasets = len(study_context.datasets)
-    exported_datasets: list[ExportedDataset] = []
     dataset_files: list[GeneratedFile] = []
     keywords_by_accession = dataset_keywords_by_accession or {}
 
@@ -613,26 +563,7 @@ def build_export_artifacts(
                 content=compose_dataset_document(dataset),
             )
         )
-        exported_datasets.append(
-            ExportedDataset(
-                accession_id=accession_id,
-                date_published=dataset['datePublished'],
-                file_path=Path(filename),
-                page_url=build_dataset_page_url(accession_id, export_config.site_base_url),
-            )
-        )
-
-    sitemap_entries = build_sitemap_entries(
-        exported_datasets,
-        export_config.sitemap_lastmod,
-    )
-    return ExportArtifacts(
-        dataset_files=dataset_files,
-        sitemap_file=GeneratedFile(
-            filename=export_config.sitemap_filename,
-            content=compose_sitemap_xml(sitemap_entries),
-        ),
-    )
+    return ExportArtifacts(dataset_files=dataset_files)
 
 
 def write_export_artifacts(output_dir: Path, artifacts: ExportArtifacts) -> None:
@@ -640,10 +571,6 @@ def write_export_artifacts(output_dir: Path, artifacts: ExportArtifacts) -> None
         output_path = output_dir / dataset_file.filename
         output_path.write_text(dataset_file.content, encoding='utf-8')
         print(f'Wrote {output_path}')
-
-    sitemap_path = output_dir / artifacts.sitemap_file.filename
-    sitemap_path.write_text(artifacts.sitemap_file.content, encoding='utf-8')
-    print(f'Wrote {sitemap_path}')
 
 
 def build_export_zip_bytes(
@@ -654,20 +581,9 @@ def build_export_zip_bytes(
     with zipfile.ZipFile(buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
         for dataset_file in artifacts.dataset_files:
             archive.writestr(dataset_file.filename, dataset_file.content)
-        archive.writestr(artifacts.sitemap_file.filename, artifacts.sitemap_file.content)
         for extra_file in extra_files or []:
             archive.writestr(extra_file.filename, extra_file.content)
     return buffer.getvalue()
-
-
-def build_sitemap_entries(
-    exported_datasets: list[ExportedDataset],
-    sitemap_lastmod: str | None = None,
-) -> list[SitemapEntry]:
-    return sorted([
-        SitemapEntry(loc=dataset.page_url, lastmod=sitemap_lastmod)
-        for dataset in exported_datasets
-    ], key=lambda entry: entry.loc)
 
 
 def parse_ega_study_response(response: dict[str, object], study_id: str) -> EGAStudy:
@@ -799,10 +715,6 @@ def build_study_identifier(accession_id: str) -> str:
     return f'http://identifiers.org/ega.study:{accession_id}'
 
 
-def build_dataset_page_url(accession_id: str, site_base_url: str) -> str:
-    return f'{site_base_url}/catalogue/datasets/{accession_id}.html'
-
-
 def merge_keywords(global_keywords: list[str], local_keywords: list[str]) -> list[str]:
     merged_keywords: list[str] = []
     for keyword in [*global_keywords, *local_keywords]:
@@ -890,15 +802,6 @@ def parse_iso_date(value: str) -> str:
     return dt_published.date().isoformat()
 
 
-def validate_iso_date_string(value: str, field_name: str) -> str:
-    try:
-        return datetime.strptime(value, '%Y-%m-%d').date().isoformat()
-    except ValueError as exc:
-        raise MetadataValidationError(
-            f'Invalid {field_name} value "{value}"'
-        ) from exc
-
-
 def build_dataset_description(
     description: str,
     num_datasets: int,
@@ -926,24 +829,6 @@ def write_dataset_file(filepath: Path, dataset: ResearchDataset) -> None:
 
 def compose_dataset_document(dataset: ResearchDataset) -> str:
     return compose_yaml_front_matter(dataset) + compose_markdown(dataset)
-
-
-def write_sitemap_file(filepath: Path, entries: list[SitemapEntry]) -> None:
-    filepath.write_text(compose_sitemap_xml(entries), encoding='utf-8')
-
-
-def compose_sitemap_xml(entries: list[SitemapEntry]) -> str:
-    urlset = ET.Element('urlset', xmlns=SITEMAP_XMLNS)
-    for entry in entries:
-        url_element = ET.SubElement(urlset, 'url')
-        ET.SubElement(url_element, 'loc').text = entry.loc
-        if entry.lastmod is not None:
-            ET.SubElement(url_element, 'lastmod').text = entry.lastmod
-
-    ET.indent(urlset, space='  ')
-    buffer = io.BytesIO()
-    ET.ElementTree(urlset).write(buffer, encoding='utf-8', xml_declaration=True)
-    return buffer.getvalue().decode('utf-8') + '\n'
 
 
 def compose_yaml_front_matter(dataset: ResearchDataset) -> str:

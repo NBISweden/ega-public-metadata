@@ -8,7 +8,6 @@ from collections.abc import MutableMapping
 
 from metadata_enrichment_core.core import (
     DEFAULT_SITE_NAME,
-    DEFAULT_SITEMAP_FILENAME,
     DEFAULT_SITE_BASE_URL,
     ExportProject,
     ORGANISATIONS,
@@ -59,7 +58,6 @@ def clear_study_workflow_state(
     if not preserve_site_settings:
         session_state.pop('site_name', None)
         session_state.pop('site_base_url', None)
-        session_state.pop('sitemap_filename', None)
 
     dataset_state_keys = [
         key for key in session_state
@@ -75,8 +73,6 @@ def build_export_request_signature(
     publisher_org: str | None,
     site_name: str,
     site_base_url: str,
-    sitemap_filename: str,
-    sitemap_lastmod: str | None,
     global_keywords: list[str],
     dataset_keywords_by_accession: dict[str, list[str]],
     selected_accessions: set[str],
@@ -88,8 +84,6 @@ def build_export_request_signature(
             'publisher_org': publisher_org,
             'site_name': site_name,
             'site_base_url': site_base_url,
-            'sitemap_filename': sitemap_filename,
-            'sitemap_lastmod': sitemap_lastmod,
             'global_keywords': global_keywords,
             'dataset_keywords_by_accession': dataset_keywords_by_accession,
             'selected_accessions': sorted(selected_accessions),
@@ -109,8 +103,6 @@ def initialize_form_state_defaults(session_state: SessionStateMapping) -> None:
         session_state['site_name'] = DEFAULT_SITE_NAME
     if 'site_base_url' not in session_state:
         session_state['site_base_url'] = DEFAULT_SITE_BASE_URL
-    if 'sitemap_filename' not in session_state:
-        session_state['sitemap_filename'] = DEFAULT_SITEMAP_FILENAME
 
 
 def parse_keywords(raw_value: str) -> list[str]:
@@ -148,7 +140,6 @@ def restore_project_to_session_state(
     session_state['global_keywords_raw'] = ', '.join(project['global_keywords'])
     session_state['site_name'] = project['site_name']
     session_state['site_base_url'] = project['site_base_url']
-    session_state['sitemap_filename'] = project['sitemap_filename']
     initialize_dataset_state(study_context, session_state)
     dataset_state = {
         dataset['accession_id']: dataset

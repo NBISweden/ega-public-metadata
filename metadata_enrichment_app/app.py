@@ -18,11 +18,9 @@ if str(REPOSITORY_ROOT) not in sys.path:
 from metadata_enrichment_core.core import (
     DEFAULT_SITE_NAME,
     DEFAULT_SITE_BASE_URL,
-    DEFAULT_SITEMAP_FILENAME,
     EGAClient,
     ExportConfig,
     ExportProject,
-    GeneratedFile,
     MetadataValidationError,
     ORGANISATIONS,
     PUBLISHER_ORGANISATIONS,
@@ -89,15 +87,7 @@ def render_sidebar_panel(
         if artifacts is not None and project is not None:
             project_json = cast(str, st.session_state.get('project_json', ''))
             project_filename = build_project_filename(project['study_id'])
-            sidebar_zip_bytes = build_export_zip_bytes(
-                artifacts,
-                extra_files=[
-                    GeneratedFile(
-                        filename=project_filename,
-                        content=project_json,
-                    )
-                ],
-            )
+            sidebar_zip_bytes = build_export_zip_bytes(artifacts)
             st.subheader('Downloads')
             st.download_button(
                 'Download Export ZIP',
@@ -157,8 +147,7 @@ st.caption(
 st.markdown(
     """
 Use this app to look up an EGA study, review the datasets that belong to it, add the metadata
-needed for publication, and generate Quarto `.qmd` files together with a sitemap and a saved
-project snapshot.
+needed for publication, and generate Quarto `.qmd` files together with a saved project snapshot.
 """
 )
 
@@ -279,7 +268,6 @@ creator_orgs = cast(list[str], st.session_state.get('creator_orgs', []))
 publisher_org = cast(str | None, st.session_state.get('publisher_org'))
 site_name = cast(str, st.session_state.get('site_name', DEFAULT_SITE_NAME))
 site_base_url = cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL))
-sitemap_filename = cast(str, st.session_state.get('sitemap_filename', DEFAULT_SITEMAP_FILENAME))
 global_keywords = collect_global_keywords(st.session_state)
 
 selected_accessions = collect_selected_accessions(study_context, st.session_state)
@@ -304,8 +292,6 @@ current_signature = build_export_request_signature(
     publisher_org=publisher_org,
     site_name=site_name.strip() or DEFAULT_SITE_NAME,
     site_base_url=site_base_url.rstrip('/'),
-    sitemap_filename=sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
-    sitemap_lastmod=None,
     global_keywords=global_keywords,
     dataset_keywords_by_accession=dataset_keywords_by_accession,
     selected_accessions=selected_accessions,
@@ -402,10 +388,6 @@ with st.expander('Advanced site settings', expanded=has_custom_site_settings):
         'Site base URL',
         key='site_base_url',
     )
-st.text_input(
-    'Sitemap filename',
-    key='sitemap_filename',
-)
 st.text_area(
     'Global keywords',
     key='global_keywords_raw',
@@ -483,8 +465,6 @@ current_signature = build_export_request_signature(
     publisher_org=publisher_org,
     site_name=site_name.strip() or DEFAULT_SITE_NAME,
     site_base_url=site_base_url.rstrip('/'),
-    sitemap_filename=sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
-    sitemap_lastmod=None,
     global_keywords=global_keywords,
     dataset_keywords_by_accession=dataset_keywords_by_accession,
     selected_accessions=selected_accessions,
@@ -525,7 +505,6 @@ elif generate_clicked:
         export_config = ExportConfig(
             site_name=site_name.strip() or DEFAULT_SITE_NAME,
             site_base_url=site_base_url.rstrip('/'),
-            sitemap_filename=sitemap_filename.strip() or DEFAULT_SITEMAP_FILENAME,
         )
         project = build_export_project(
             study_id=cast(str, st.session_state.get('loaded_study_id', '')),
@@ -539,23 +518,13 @@ elif generate_clicked:
         )
         artifacts = build_export_artifacts_from_project(project)
         project_json = serialize_export_project(project)
-        project_filename = build_project_filename(project['study_id'])
-        zip_bytes = build_export_zip_bytes(
-            artifacts,
-            extra_files=[
-                GeneratedFile(
-                    filename=project_filename,
-                    content=project_json,
-                )
-            ],
-        )
         st.session_state['artifacts'] = artifacts
         st.session_state['project_json'] = project_json
         st.session_state['project'] = project
         st.session_state['last_generated_signature'] = current_signature
         st.session_state.pop('last_downloaded_signature', None)
         st.session_state['generate_success_message'] = (
-            f'Prepared {len(artifacts.dataset_files)} dataset files and {artifacts.sitemap_file.filename}.'
+            f'Prepared {len(artifacts.dataset_files)} dataset files.'
         )
         rerun_app()
     except MetadataValidationError as exc:
@@ -589,30 +558,17 @@ else:
     )
     preview_accession = preview_filename.removesuffix('.qmd')
     preview_dataset = build_preview_dataset_from_project(project, preview_accession)
-    download_col, sitemap_download_col = st.columns(2, gap='small')
-    with download_col:
-        st.download_button(
-            'Download Selected QMD',
-            data=preview_file.content,
-            file_name=preview_file.filename,
-            mime='text/markdown',
-            on_click=mark_generated_export_downloaded,
-            use_container_width=True,
-        )
-    with sitemap_download_col:
-        st.download_button(
-            'Download Sitemap XML',
-            data=artifacts.sitemap_file.content,
-            file_name=artifacts.sitemap_file.filename,
-            mime='application/xml',
-            on_click=mark_generated_export_downloaded,
-            use_container_width=True,
-        )
+    st.download_button(
+        'Download Selected QMD',
+        data=preview_file.content,
+        file_name=preview_file.filename,
+        mime='text/markdown',
+        on_click=mark_generated_export_downloaded,
+        use_container_width=True,
+    )
 
-    preview_tabs = st.tabs(['QMD', 'JSON-LD', 'Sitemap'])
+    preview_tabs = st.tabs(['QMD', 'JSON-LD'])
     with preview_tabs[0]:
         st.code(preview_file.content, language='markdown')
     with preview_tabs[1]:
         st.json(preview_dataset, expanded=1)
-    with preview_tabs[2]:
-        st.code(artifacts.sitemap_file.content, language='xml')
