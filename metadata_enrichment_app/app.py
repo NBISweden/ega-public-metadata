@@ -1,6 +1,7 @@
 """Streamlit UI for FEGA Sweden Metadata Enrichment."""
 
 from __future__ import annotations
+import hashlib
 import json
 import sys
 
@@ -103,6 +104,7 @@ def render_sidebar_panel(
                 data=sidebar_zip_bytes,
                 file_name=build_export_archive_filename(project['study_id']),
                 mime='application/zip',
+                on_click=mark_generated_export_downloaded,
                 use_container_width=True,
             )
             st.download_button(
@@ -110,6 +112,7 @@ def render_sidebar_panel(
                 data=project_json,
                 file_name=project_filename,
                 mime='application/json',
+                on_click=mark_generated_export_downloaded,
                 use_container_width=True,
             )
 
@@ -120,6 +123,12 @@ def rerun_app() -> None:
         rerun()
         return
     st.experimental_rerun()
+
+
+def mark_generated_export_downloaded() -> None:
+    last_generated_signature = cast(str | None, st.session_state.get('last_generated_signature'))
+    if last_generated_signature is not None:
+        st.session_state['last_downloaded_signature'] = last_generated_signature
 
 
 def replace_loaded_study(study_id: str) -> None:
@@ -159,12 +168,19 @@ uploaded_project = st.file_uploader(
     help='Load a previously saved project snapshot to regenerate or update export files.',
 )
 if uploaded_project is not None:
+    uploaded_project_bytes = uploaded_project.getvalue()
+    uploaded_project_signature = hashlib.sha256(uploaded_project_bytes).hexdigest()
     try:
-        project = deserialize_export_project(uploaded_project.getvalue().decode('utf-8'))
-        restore_project_to_session_state(project, st.session_state)
-        st.success(f'Loaded project for study {project["study_id"]}.')
+        if st.session_state.get('loaded_project_upload_signature') != uploaded_project_signature:
+            project = deserialize_export_project(uploaded_project_bytes.decode('utf-8'))
+            restore_project_to_session_state(project, st.session_state)
+            st.session_state['loaded_project_upload_signature'] = uploaded_project_signature
+            st.success(f'Loaded project for study {project["study_id"]}.')
     except (UnicodeDecodeError, MetadataValidationError, json.JSONDecodeError) as exc:
+        st.session_state.pop('loaded_project_upload_signature', None)
         st.error(f'Failed to load project file: {exc}')
+else:
+    st.session_state.pop('loaded_project_upload_signature', None)
 
 generate_success_message = cast(str | None, st.session_state.pop('generate_success_message', None))
 if generate_success_message:
@@ -295,10 +311,15 @@ current_signature = build_export_request_signature(
     selected_accessions=selected_accessions,
 )
 last_generated_signature = cast(str | None, st.session_state.get('last_generated_signature'))
+last_downloaded_signature = cast(str | None, st.session_state.get('last_downloaded_signature'))
 has_pending_changes = (
     artifacts is not None
     and last_generated_signature is not None
     and current_signature != last_generated_signature
+)
+has_downloaded_current_export = (
+    last_generated_signature is not None
+    and last_downloaded_signature == last_generated_signature
 )
 
 next_step_message = 'Review the preview and download the files you need.'
@@ -314,6 +335,10 @@ elif artifacts is None:
     next_step_message = 'Click Generate Export Files.'
 elif has_pending_changes:
     next_step_message = 'Click Generate Export Files again to refresh preview and downloads.'
+elif not has_downloaded_current_export:
+    next_step_message = 'Download at least one file to complete the workflow.'
+else:
+    next_step_message = 'Workflow complete.'
 
 render_sidebar_panel(
     step_statuses=[
@@ -321,7 +346,13 @@ render_sidebar_panel(
         ('Fill in study-level metadata', workflow_ready_for_study_metadata),
         ('Select datasets and add keywords', workflow_ready_for_datasets),
         ('Generate export files', artifacts is not None and not has_pending_changes),
-        ('Preview and download files', artifacts is not None and project is not None and not has_pending_changes),
+        (
+            'Preview and download files',
+            artifacts is not None
+            and project is not None
+            and not has_pending_changes
+            and has_downloaded_current_export
+        ),
     ],
     next_step_message=next_step_message,
     project=project,
@@ -522,6 +553,7 @@ elif generate_clicked:
         st.session_state['project_json'] = project_json
         st.session_state['project'] = project
         st.session_state['last_generated_signature'] = current_signature
+        st.session_state.pop('last_downloaded_signature', None)
         st.session_state['generate_success_message'] = (
             f'Prepared {len(artifacts.dataset_files)} dataset files and {artifacts.sitemap_file.filename}.'
         )
@@ -564,6 +596,7 @@ else:
             data=preview_file.content,
             file_name=preview_file.filename,
             mime='text/markdown',
+            on_click=mark_generated_export_downloaded,
             use_container_width=True,
         )
     with sitemap_download_col:
@@ -572,6 +605,7 @@ else:
             data=artifacts.sitemap_file.content,
             file_name=artifacts.sitemap_file.filename,
             mime='application/xml',
+            on_click=mark_generated_export_downloaded,
             use_container_width=True,
         )
 

@@ -39,6 +39,7 @@ def clear_generated_export_state(session_state: SessionStateMapping) -> None:
     session_state.pop('project_json', None)
     session_state.pop('project', None)
     session_state.pop('last_generated_signature', None)
+    session_state.pop('last_downloaded_signature', None)
 
 
 def clear_study_workflow_state(

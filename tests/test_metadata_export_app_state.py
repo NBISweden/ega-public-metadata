@@ -98,6 +98,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             'project_json': 'stale',
             'project': 'stale',
             'last_generated_signature': 'stale',
+            'last_downloaded_signature': 'stale',
             'other_key': 'keep',
         }
 
@@ -107,6 +108,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertNotIn('project_json', session_state)
         self.assertNotIn('project', session_state)
         self.assertNotIn('last_generated_signature', session_state)
+        self.assertNotIn('last_downloaded_signature', session_state)
         self.assertEqual(session_state['other_key'], 'keep')
 
     def test_clear_study_workflow_state_resets_study_specific_values_but_keeps_site_settings(self) -> None:
@@ -122,6 +124,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             'project_json': 'stale',
             'project': 'stale',
             'last_generated_signature': 'stale',
+            'last_downloaded_signature': 'stale',
             'generate_success_message': 'stale',
             'pending_fetch_study_id': 'EGAS50000000002',
             'pending_fetch_from_study_id': 'EGAS50000000001',
@@ -143,6 +146,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertNotIn('project_json', session_state)
         self.assertNotIn('project', session_state)
         self.assertNotIn('last_generated_signature', session_state)
+        self.assertNotIn('last_downloaded_signature', session_state)
         self.assertNotIn('generate_success_message', session_state)
         self.assertNotIn('pending_fetch_study_id', session_state)
         self.assertNotIn('pending_fetch_from_study_id', session_state)
@@ -217,6 +221,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             'project_json': 'stale',
             'project': 'stale',
             'last_generated_signature': 'stale',
+            'last_downloaded_signature': 'stale',
             'include_EGAD50000009999': True,
             'keywords_EGAD50000009999': 'stale keyword',
         }
@@ -243,6 +248,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertNotIn('project_json', session_state)
         self.assertNotIn('project', session_state)
         self.assertNotIn('last_generated_signature', session_state)
+        self.assertNotIn('last_downloaded_signature', session_state)
 
     def test_build_preview_dataset_from_project_uses_project_snapshot(self) -> None:
         project = build_export_project(
