@@ -671,7 +671,7 @@ class ResearchDataExportTests(unittest.TestCase):
             artifacts.dataset_files[0].content,
         )
 
-    def test_deserialize_export_project_supports_schema_version_1_without_global_keywords(self) -> None:
+    def test_deserialize_export_project_rejects_older_schema_versions(self) -> None:
         project_json = """
         {
           "schema_version": 1,
@@ -703,13 +703,11 @@ class ResearchDataExportTests(unittest.TestCase):
         }
         """
 
-        restored_project = deserialize_export_project(project_json)
-
-        self.assertEqual(restored_project['schema_version'], 3)
-        self.assertEqual(restored_project['global_keywords'], [])
-        self.assertEqual(restored_project['site_name'], 'FEGA Sweden')
-        self.assertIsNone(restored_project['sitemap_lastmod'])
-        self.assertEqual(restored_project['datasets'][0]['keywords'], ['population genetics'])
+        with self.assertRaisesRegex(
+            MetadataValidationError,
+            'Unsupported project schema version "1"',
+        ):
+            deserialize_export_project(project_json)
 
     def test_build_export_artifacts_matches_golden_output(self) -> None:
         study_context = StudyContext(

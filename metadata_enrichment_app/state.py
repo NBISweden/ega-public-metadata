@@ -144,8 +144,8 @@ def restore_project_to_session_state(
     session_state['loaded_study_id'] = project['study_id']
     session_state['creator_orgs'] = project['creator_orgs']
     session_state['publisher_org'] = project['publisher_org']
-    session_state['global_keywords_raw'] = ', '.join(project.get('global_keywords', []))
-    session_state['site_name'] = project.get('site_name', DEFAULT_SITE_NAME)
+    session_state['global_keywords_raw'] = ', '.join(project['global_keywords'])
+    session_state['site_name'] = project['site_name']
     session_state['site_base_url'] = project['site_base_url']
     session_state['sitemap_filename'] = project['sitemap_filename']
     initialize_dataset_state(study_context, session_state)
@@ -184,8 +184,8 @@ def build_preview_dataset_from_project(
         study_url=study_context.url,
         creator_orgs=project['creator_orgs'],
         publisher_org=project['publisher_org'],
-        keywords=merge_keywords(project.get('global_keywords', []), project_dataset['keywords']),
-        site_name=project.get('site_name', DEFAULT_SITE_NAME),
+        keywords=merge_keywords(project['global_keywords'], project_dataset['keywords']),
+        site_name=project['site_name'],
         site_base_url=project['site_base_url'],
     )
 

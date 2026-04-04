@@ -170,7 +170,6 @@ class ExportArtifacts:
 
 
 PROJECT_SCHEMA_VERSION = 3
-SUPPORTED_PROJECT_SCHEMA_VERSIONS = {1, 2, PROJECT_SCHEMA_VERSION}
 
 
 class MetadataValidationError(ValueError):
@@ -431,7 +430,7 @@ def deserialize_export_project(project_json: str) -> ExportProject:
     if not isinstance(payload, dict):
         raise MetadataValidationError('Project file must contain a JSON object')
     schema_version = payload.get('schema_version')
-    if schema_version not in SUPPORTED_PROJECT_SCHEMA_VERSIONS:
+    if schema_version != PROJECT_SCHEMA_VERSION:
         raise MetadataValidationError(
             f'Unsupported project schema version "{schema_version}"'
         )
@@ -448,20 +447,22 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         raise MetadataValidationError(
             f'Project file contains invalid publisher "{publisher_org}"'
         )
-    global_keywords_raw = payload.get('global_keywords', [])
+    global_keywords_raw = payload.get('global_keywords')
     if not isinstance(global_keywords_raw, list):
         raise MetadataValidationError('Project file global_keywords must be a list')
     global_keywords = [
         require_non_empty_string(keyword, 'global_keywords', 'project file')
         for keyword in global_keywords_raw
     ]
-    site_name = require_non_empty_string(payload.get('site_name', DEFAULT_SITE_NAME), 'site_name', 'project file')
+    site_name = require_non_empty_string(payload.get('site_name'), 'site_name', 'project file')
     site_base_url = require_non_empty_string(payload.get('site_base_url'), 'site_base_url', 'project file')
     sitemap_filename = require_non_empty_string(
         payload.get('sitemap_filename'),
         'sitemap_filename',
         'project file',
     )
+    if 'sitemap_lastmod' not in payload:
+        raise MetadataValidationError('Project file is missing sitemap_lastmod')
     raw_sitemap_lastmod = payload.get('sitemap_lastmod')
     sitemap_lastmod = None
     if raw_sitemap_lastmod is not None:
@@ -529,12 +530,12 @@ def build_export_artifacts_from_project(project: ExportProject) -> ExportArtifac
         creator_orgs=project['creator_orgs'],
         publisher_org=project['publisher_org'],
         export_config=ExportConfig(
-            site_name=project.get('site_name', DEFAULT_SITE_NAME),
+            site_name=project['site_name'],
             site_base_url=project['site_base_url'],
             sitemap_filename=project['sitemap_filename'],
-            sitemap_lastmod=project.get('sitemap_lastmod'),
+            sitemap_lastmod=project['sitemap_lastmod'],
         ),
-        default_keywords=project.get('global_keywords', []),
+        default_keywords=project['global_keywords'],
         dataset_keywords_by_accession={
             dataset['accession_id']: dataset['keywords']
             for dataset in project['datasets']
