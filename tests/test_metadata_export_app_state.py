@@ -63,7 +63,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
     def test_get_organisation_display_name_returns_human_readable_name(self) -> None:
         self.assertEqual(get_organisation_display_name('UU'), 'Uppsala University')
         self.assertEqual(get_organisation_display_name('KI'), 'Karolinska Institutet')
-        self.assertEqual(get_organisation_display_name('BTB'), 'The Swedish Childhood Tumor Biobank')
+        self.assertEqual(get_organisation_display_name('BTB'), 'The Swedish Childhood Tumour Biobank')
 
     def test_build_export_request_signature_changes_when_export_inputs_change(self) -> None:
         base_signature = build_export_request_signature(
@@ -271,7 +271,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         preview_dataset = build_preview_dataset_from_project(project, 'EGAD50000001324')
 
         self.assertEqual(preview_dataset['name'], 'Dataset B')
-        self.assertEqual(preview_dataset['publisher']['name'], 'The Swedish Childhood Tumor Biobank')
+        self.assertEqual(preview_dataset['publisher']['name'], 'The Swedish Childhood Tumour Biobank')
         self.assertEqual(
             preview_dataset['keywords'],
             ['genomics', 'reference cohort', 'whole genome'],

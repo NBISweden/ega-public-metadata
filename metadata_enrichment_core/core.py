@@ -34,7 +34,7 @@ ORGANISATIONS = {
     'LiU': {'@type': 'Organization', '@id': 'https://ror.org/05ynxx418', 'name': 'Linköping University'},
     'LU': {'@type': 'Organization', '@id': 'https://ror.org/012a77v79', 'name': 'Lund University'},
     'UU': {'@type': 'Organization', '@id': 'https://ror.org/048a87296', 'name': 'Uppsala University'},
-    'BTB': {'@type': 'Organization', '@id': None, 'name': 'The Swedish Childhood Tumor Biobank'},
+    'BTB': {'@type': 'Organization', '@id': None, 'name': 'The Swedish Childhood Tumour Biobank'},
 }
 PUBLISHER_ORGANISATIONS = tuple(
     organisation_key for organisation_key in ORGANISATIONS if organisation_key != 'FEGA-SE'

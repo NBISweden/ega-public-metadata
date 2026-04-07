@@ -1,7 +1,7 @@
 ---
 title: "Dataset A"
 accession: EGAD50000001323
-author: "The Swedish Childhood Tumor Biobank"
+author: "The Swedish Childhood Tumour Biobank"
 date: "2024-01-02"
 description: Dataset
 categories:
@@ -18,7 +18,7 @@ format:
           "name": "Dataset A",
           "publisher": {
             "@type": "Organization",
-            "name": "The Swedish Childhood Tumor Biobank"
+            "name": "The Swedish Childhood Tumour Biobank"
           },
           "includedInDataCatalog": {
             "@type": "DataCatalog",

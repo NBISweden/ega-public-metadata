@@ -191,7 +191,7 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(dataset['datePublished'], '2024-01-02')
         self.assertEqual(
             [creator['name'] for creator in dataset['creator']],
-            ['Uppsala University', 'The Swedish Childhood Tumor Biobank'],
+            ['Uppsala University', 'The Swedish Childhood Tumour Biobank'],
         )
         self.assertEqual(
             [organisation['name'] for organisation in dataset['sourceOrganization']],
@@ -262,7 +262,7 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertNotIn('@id', normalized.sd_publisher)
         self.assertEqual(
             [creator['name'] for creator in normalized.creators],
-            ['Uppsala University', 'The Swedish Childhood Tumor Biobank'],
+            ['Uppsala University', 'The Swedish Childhood Tumour Biobank'],
         )
         self.assertEqual(
             [organisation['name'] for organisation in normalized.source_organizations],
@@ -427,9 +427,9 @@ class ResearchDataExportTests(unittest.TestCase):
 
         self.assertEqual(
             [creator['name'] for creator in dataset['creator']],
-            ['The Swedish Childhood Tumor Biobank', 'FEGA Sweden'],
+            ['The Swedish Childhood Tumour Biobank', 'FEGA Sweden'],
         )
-        self.assertEqual(dataset['publisher']['name'], 'The Swedish Childhood Tumor Biobank')
+        self.assertEqual(dataset['publisher']['name'], 'The Swedish Childhood Tumour Biobank')
         self.assertNotIn('@id', dataset['creator'][0])
         self.assertNotIn('@id', dataset['creator'][1])
         self.assertNotIn('@id', dataset['publisher'])
