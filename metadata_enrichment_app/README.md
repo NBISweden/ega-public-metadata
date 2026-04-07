@@ -113,6 +113,7 @@ The app generates a `schema.org` `Dataset` JSON-LD payload for each exported dat
 | `datePublished` | derived from EGA source | `dataset.released_date` from EGA | parsed from ISO timestamp and normalized to `YYYY-MM-DD` |
 | `description` | derived from EGA source | `dataset.description` from EGA | dataset description plus an appended summary saying which study the dataset belongs to |
 | `inLanguage` | FEGA Sweden-managed | hard-coded in shared export core | always English: `en` / `English` |
+| `conditionsOfAccess` | FEGA Sweden-managed | hard-coded in shared export core | always `http://publications.europa.eu/resource/authority/access-right/RESTRICTED` |
 | `isPartOf.@id` | derived | `study.accession_id` from EGA | converted to `http://identifiers.org/ega.study:{accession_id}` |
 | `isPartOf.name` | EGA source | `study.title` from EGA | copied from the EGA study title |
 | `creator` | app enrichment | one or more creators selected in the app | required for Researchdata.se export; emitted as one or more creators |

@@ -23,6 +23,9 @@ DEFAULT_TIMEOUT = 30
 DEFAULT_PAGE_SIZE = 100
 DEFAULT_SITE_BASE_URL = 'https://fega.nbis.se'
 DEFAULT_SITE_NAME = 'FEGA Sweden'
+DEFAULT_CONDITIONS_OF_ACCESS = (
+    'http://publications.europa.eu/resource/authority/access-right/RESTRICTED'
+)
 
 
 ORGANISATIONS = {
@@ -81,6 +84,7 @@ ResearchDataset = TypedDict('ResearchDataset', {
     'description': str,
     'inLanguage': list[dict[str, str]],
     'isPartOf': dict[str, str],
+    'conditionsOfAccess': str,
     'creator': list[Organisation],
     'sourceOrganization': list[Organisation],
     'keywords': list[str],
@@ -728,6 +732,7 @@ def transform_ega_dataset(
         'datePublished': normalized.date_published,
         'description': normalized.description,
         'inLanguage': normalized.in_language,
+        'conditionsOfAccess': DEFAULT_CONDITIONS_OF_ACCESS,
         'isPartOf': {
             '@id': normalized.study_identifier,
             'name': normalized.study_title,

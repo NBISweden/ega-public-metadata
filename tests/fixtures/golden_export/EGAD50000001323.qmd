@@ -40,6 +40,7 @@ format:
               "name": "English"
             }
           ],
+          "conditionsOfAccess": "http://publications.europa.eu/resource/authority/access-right/RESTRICTED",
           "isPartOf": {
             "@id": "http://identifiers.org/ega.study:EGAS50000000906",
             "name": "SweGen"

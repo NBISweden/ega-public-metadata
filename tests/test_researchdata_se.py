@@ -207,6 +207,10 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(dataset['sdPublisher']['url'], 'https://fega.nbis.se')
         self.assertNotIn('@id', dataset['sdPublisher'])
         self.assertEqual(
+            dataset['conditionsOfAccess'],
+            'http://publications.europa.eu/resource/authority/access-right/RESTRICTED',
+        )
+        self.assertEqual(
             dataset['isPartOf']['@id'],
             'http://identifiers.org/ega.study:EGAS50000000906',
         )
