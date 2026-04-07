@@ -22,6 +22,7 @@ from metadata_enrichment_core.core import (
     MetadataValidationError,
     ORGANISATIONS,
     PUBLISHER_ORGANISATIONS,
+    SOURCE_ORGANISATIONS,
     build_export_artifacts_from_project,
     build_export_project,
     build_export_zip_bytes,
@@ -61,11 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fetch_parser.add_argument(
         '--source-organization',
-        choices=ORGANISATIONS.keys(),
+        choices=SOURCE_ORGANISATIONS,
         action='append',
         dest='source_orgs',
         default=[],
-        help='Research principal emitted as sourceOrganization; repeat for multiple values',
+        help='Research principal emitted as sourceOrganization; repeat for multiple legal-entity values',
     )
     fetch_parser.add_argument(
         '--global-keyword',

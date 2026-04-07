@@ -116,7 +116,7 @@ The app generates a `schema.org` `Dataset` JSON-LD payload for each exported dat
 | `isPartOf.@id` | derived | `study.accession_id` from EGA | converted to `http://identifiers.org/ega.study:{accession_id}` |
 | `isPartOf.name` | EGA source | `study.title` from EGA | copied from the EGA study title |
 | `creator` | app enrichment | one or more creators selected in the app | required for Researchdata.se export; emitted as one or more creators |
-| `sourceOrganization` | app enrichment | optional source organizations selected in the app | emitted when one or more research principals are specified |
+| `sourceOrganization` | app enrichment | optional source organizations selected in the app | emitted when one or more research principals are specified; limited to legal entities |
 | `keywords` | app enrichment | global keywords plus dataset-specific additional keywords | required for Researchdata.se export; effective keywords are built as `global + dataset-specific`, deduplicated in order |
 
 Notes:

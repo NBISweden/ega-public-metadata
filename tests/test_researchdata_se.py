@@ -667,6 +667,46 @@ class ResearchDataExportTests(unittest.TestCase):
         ):
             deserialize_export_project(project_json)
 
+    def test_deserialize_export_project_rejects_non_legal_entity_source_organizations(self) -> None:
+        project_json = """
+        {
+          "schema_version": 4,
+          "created_at": "2026-04-07T12:00:00+00:00",
+          "study_id": "EGAS50000000906",
+          "study_context": {
+            "title": "SweGen",
+            "url": "http://identifiers.org/ega.study:EGAS50000000906",
+            "datasets": [
+              {
+                "accession_id": "EGAD50000001323",
+                "title": "Dataset A",
+                "released_date": "2024-01-02T10:00:00Z",
+                "description": "First dataset description."
+              }
+            ]
+          },
+          "creator_orgs": ["UU"],
+          "source_orgs": ["BTB"],
+          "publisher_org": "LU",
+          "global_keywords": ["genomics"],
+          "site_name": "FEGA Sweden",
+          "site_base_url": "https://example.org",
+          "datasets": [
+            {
+              "accession_id": "EGAD50000001323",
+              "include": true,
+              "keywords": ["population genetics"]
+            }
+          ]
+        }
+        """
+
+        with self.assertRaisesRegex(
+            MetadataValidationError,
+            'Project file contains invalid source organization\\(s\\): BTB',
+        ):
+            deserialize_export_project(project_json)
+
     def test_build_export_artifacts_matches_golden_output(self) -> None:
         study_context = StudyContext(
             title='SweGen',

@@ -24,6 +24,7 @@ from metadata_enrichment_core.core import (
     MetadataValidationError,
     ORGANISATIONS,
     PUBLISHER_ORGANISATIONS,
+    SOURCE_ORGANISATIONS,
     StudyContext,
     build_export_artifacts_from_project,
     build_export_project,
@@ -371,10 +372,10 @@ st.multiselect(
 )
 st.multiselect(
     'Source organizations',
-    options=list(ORGANISATIONS.keys()),
+    options=list(SOURCE_ORGANISATIONS),
     key='source_orgs',
     format_func=get_organisation_display_name,
-    help='Optional research principals emitted as schema.org sourceOrganization.',
+    help='Optional research principals emitted as schema.org sourceOrganization. Only legal entities are listed.',
 )
 st.selectbox(
     'Publisher',

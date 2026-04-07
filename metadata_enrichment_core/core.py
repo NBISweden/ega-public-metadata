@@ -35,6 +35,11 @@ ORGANISATIONS = {
 PUBLISHER_ORGANISATIONS = tuple(
     organisation_key for organisation_key in ORGANISATIONS if organisation_key != 'FEGA-SE'
 )
+SOURCE_ORGANISATIONS = tuple(
+    organisation_key
+    for organisation_key, organisation in ORGANISATIONS.items()
+    if organisation.get('@id') is not None
+)
 
 
 Organisation = TypedDict(
@@ -424,6 +429,15 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         require_non_empty_string(source_org, 'source_orgs', 'project file')
         for source_org in source_orgs_raw
     ]
+    invalid_source_orgs = [
+        source_org for source_org in source_orgs
+        if source_org not in SOURCE_ORGANISATIONS
+    ]
+    if invalid_source_orgs:
+        raise MetadataValidationError(
+            'Project file contains invalid source organization(s): '
+            + ', '.join(invalid_source_orgs)
+        )
     publisher_org = require_non_empty_string(payload.get('publisher_org'), 'publisher_org', 'project file')
     if publisher_org not in PUBLISHER_ORGANISATIONS:
         raise MetadataValidationError(
@@ -764,6 +778,15 @@ def normalize_ega_dataset_metadata(
         creators = [build_organisation(creator_org) for creator_org in creator_orgs]
     source_organizations = None
     if source_orgs:
+        invalid_source_orgs = [
+            source_org for source_org in source_orgs
+            if source_org not in SOURCE_ORGANISATIONS
+        ]
+        if invalid_source_orgs:
+            raise MetadataValidationError(
+                'source organizations must be legal entities for Researchdata.se export: '
+                + ', '.join(invalid_source_orgs)
+            )
         source_organizations = [build_organisation(source_org) for source_org in source_orgs]
     if publisher_org is None:
         raise MetadataValidationError(
