@@ -68,6 +68,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         base_signature = build_export_request_signature(
             study_id='EGAS50000000906',
             creator_orgs=['UU'],
+            source_orgs=['LU'],
             publisher_org='LU',
             site_name='FEGA Sweden',
             site_base_url='https://example.org',
@@ -78,6 +79,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         changed_signature = build_export_request_signature(
             study_id='EGAS50000000906',
             creator_orgs=['UU'],
+            source_orgs=['UU', 'LU'],
             publisher_org='LU',
             site_name='NBIS Data Portal',
             site_base_url='https://example.org',
@@ -112,6 +114,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             'study_context': 'stale',
             'loaded_study_id': 'EGAS50000000001',
             'creator_orgs': ['UU'],
+            'source_orgs': ['LU'],
             'publisher_org': 'LU',
             'global_keywords_raw': 'genomics',
             'include_EGAD50000001323': False,
@@ -133,6 +136,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertNotIn('study_context', session_state)
         self.assertNotIn('loaded_study_id', session_state)
         self.assertNotIn('creator_orgs', session_state)
+        self.assertNotIn('source_orgs', session_state)
         self.assertNotIn('publisher_org', session_state)
         self.assertNotIn('global_keywords_raw', session_state)
         self.assertNotIn('include_EGAD50000001323', session_state)
@@ -157,6 +161,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         initialize_form_state_defaults(session_state)
 
         self.assertEqual(session_state['creator_orgs'], [])
+        self.assertEqual(session_state['source_orgs'], [])
         self.assertEqual(session_state['global_keywords_raw'], '')
         self.assertEqual(session_state['site_name'], 'FEGA Sweden')
         self.assertEqual(session_state['publisher_org'], 'LU')
@@ -165,6 +170,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
         fresh_session_state = {}
         initialize_form_state_defaults(fresh_session_state)
         self.assertEqual(fresh_session_state['creator_orgs'], [])
+        self.assertEqual(fresh_session_state['source_orgs'], [])
         self.assertEqual(fresh_session_state['global_keywords_raw'], '')
         self.assertEqual(fresh_session_state['site_name'], 'FEGA Sweden')
         self.assertIsNone(fresh_session_state['publisher_org'])
@@ -195,6 +201,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             study_id='EGAS50000000906',
             study_context=self.study_context,
             creator_orgs=['UU', 'LU'],
+            source_orgs=['LU'],
             publisher_org='BTB',
             export_config=ExportConfig(
                 site_name='NBIS Data Portal',
@@ -221,6 +228,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
 
         self.assertEqual(session_state['loaded_study_id'], 'EGAS50000000906')
         self.assertEqual(session_state['creator_orgs'], ['UU', 'LU'])
+        self.assertEqual(session_state['source_orgs'], ['LU'])
         self.assertEqual(session_state['publisher_org'], 'BTB')
         self.assertEqual(session_state['global_keywords_raw'], 'genomics')
         self.assertEqual(session_state['site_name'], 'NBIS Data Portal')
@@ -245,6 +253,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
             study_id='EGAS50000000906',
             study_context=self.study_context,
             creator_orgs=['UU', 'LU'],
+            source_orgs=['LU'],
             publisher_org='BTB',
             export_config=ExportConfig(
                 site_name='NBIS Data Portal',
@@ -265,6 +274,10 @@ class MetadataExportAppStateTests(unittest.TestCase):
         self.assertEqual(
             preview_dataset['keywords'],
             ['genomics', 'reference cohort', 'whole genome'],
+        )
+        self.assertEqual(
+            [organisation['name'] for organisation in preview_dataset['sourceOrganization']],
+            ['Lund University'],
         )
         self.assertEqual(preview_dataset['includedInDataCatalog']['name'], 'NBIS Data Portal')
         self.assertEqual(preview_dataset['sdPublisher']['name'], 'NBIS Data Portal')

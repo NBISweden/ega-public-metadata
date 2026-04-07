@@ -77,6 +77,7 @@ ResearchDataset = TypedDict('ResearchDataset', {
     'inLanguage': list[dict[str, str]],
     'isPartOf': dict[str, str],
     'creator': list[Organisation],
+    'sourceOrganization': list[Organisation],
     'keywords': list[str],
 }, total=False)
 
@@ -94,6 +95,7 @@ class NormalizedDatasetMetadata:
     sd_publisher: dict[str, str | None]
     in_language: list[dict[str, str]]
     creators: list[Organisation] | None = None
+    source_organizations: list[Organisation] | None = None
     keywords: list[str] | None = None
 
 
@@ -121,6 +123,7 @@ ExportProject = TypedDict(
         'study_id': str,
         'study_context': StudyContext,
         'creator_orgs': list[str],
+        'source_orgs': list[str],
         'publisher_org': str,
         'global_keywords': list[str],
         'site_name': str,
@@ -146,7 +149,7 @@ class ExportArtifacts:
     dataset_files: list[GeneratedFile]
 
 
-PROJECT_SCHEMA_VERSION = 3
+PROJECT_SCHEMA_VERSION = 4
 
 
 class MetadataValidationError(ValueError):
@@ -341,6 +344,7 @@ def export_study_metadata(args: argparse.Namespace) -> None:
     artifacts = build_export_artifacts(
         study_context=study_context,
         creator_orgs=args.creator,
+        source_orgs=None,
         publisher_org=args.publisher,
         export_config=export_config,
         default_keywords=args.keywords or [],
@@ -355,6 +359,7 @@ def build_export_project(
     creator_orgs: list[str],
     publisher_org: str,
     export_config: ExportConfig,
+    source_orgs: list[str] | None = None,
     global_keywords: list[str] | None = None,
     dataset_keywords_by_accession: dict[str, list[str]] | None = None,
     selected_accessions: set[str] | None = None,
@@ -376,6 +381,7 @@ def build_export_project(
         study_id=study_id,
         study_context=study_context,
         creator_orgs=list(creator_orgs),
+        source_orgs=list(source_orgs or []),
         publisher_org=publisher_org,
         global_keywords=list(global_keywords or []),
         site_name=export_config.site_name,
@@ -410,6 +416,13 @@ def deserialize_export_project(project_json: str) -> ExportProject:
     creator_orgs = [
         require_non_empty_string(creator_org, 'creator_orgs', 'project file')
         for creator_org in creator_orgs_raw
+    ]
+    source_orgs_raw = payload.get('source_orgs')
+    if not isinstance(source_orgs_raw, list):
+        raise MetadataValidationError('Project file source_orgs must be a list')
+    source_orgs = [
+        require_non_empty_string(source_org, 'source_orgs', 'project file')
+        for source_org in source_orgs_raw
     ]
     publisher_org = require_non_empty_string(payload.get('publisher_org'), 'publisher_org', 'project file')
     if publisher_org not in PUBLISHER_ORGANISATIONS:
@@ -469,6 +482,7 @@ def deserialize_export_project(project_json: str) -> ExportProject:
         study_id=study_id,
         study_context=study_context,
         creator_orgs=creator_orgs,
+        source_orgs=source_orgs,
         publisher_org=publisher_org,
         global_keywords=global_keywords,
         site_name=site_name,
@@ -481,6 +495,7 @@ def build_export_artifacts_from_project(project: ExportProject) -> ExportArtifac
     return build_export_artifacts(
         study_context=project['study_context'],
         creator_orgs=project['creator_orgs'],
+        source_orgs=project['source_orgs'],
         publisher_org=project['publisher_org'],
         export_config=ExportConfig(
             site_name=project['site_name'],
@@ -528,6 +543,7 @@ def build_export_artifacts(
     creator_orgs: list[str] | None,
     publisher_org: str,
     export_config: ExportConfig,
+    source_orgs: list[str] | None = None,
     default_keywords: list[str] | None = None,
     dataset_keywords_by_accession: dict[str, list[str]] | None = None,
     selected_accessions: set[str] | None = None,
@@ -551,6 +567,7 @@ def build_export_artifacts(
             study_title=study_context.title,
             study_url=study_context.url,
             creator_orgs=creator_orgs,
+            source_orgs=source_orgs,
             publisher_org=publisher_org,
             keywords=keywords,
             site_name=export_config.site_name,
@@ -665,6 +682,7 @@ def transform_ega_dataset(
     study_title: str,
     study_url: str,
     creator_orgs: list[str] | None = None,
+    source_orgs: list[str] | None = None,
     publisher_org: str | None = None,
     keywords: list[str] | None = None,
     site_base_url: str = DEFAULT_SITE_BASE_URL,
@@ -679,6 +697,7 @@ def transform_ega_dataset(
         study_url=study_url,
         num_datasets=num_datasets,
         creator_orgs=creator_orgs,
+        source_orgs=source_orgs,
         publisher_org=publisher_org,
         keywords=keywords,
         site_base_url=site_base_url,
@@ -702,6 +721,8 @@ def transform_ega_dataset(
     }
     if normalized.creators:
         dataset['creator'] = normalized.creators
+    if normalized.source_organizations:
+        dataset['sourceOrganization'] = normalized.source_organizations
     if normalized.keywords:
         dataset['keywords'] = normalized.keywords
     return dataset
@@ -732,6 +753,7 @@ def normalize_ega_dataset_metadata(
     study_url: str,
     num_datasets: int,
     creator_orgs: list[str] | None = None,
+    source_orgs: list[str] | None = None,
     publisher_org: str | None = None,
     keywords: list[str] | None = None,
     site_base_url: str = DEFAULT_SITE_BASE_URL,
@@ -740,6 +762,9 @@ def normalize_ega_dataset_metadata(
     creators = None
     if creator_orgs is not None:
         creators = [build_organisation(creator_org) for creator_org in creator_orgs]
+    source_organizations = None
+    if source_orgs:
+        source_organizations = [build_organisation(source_org) for source_org in source_orgs]
     if publisher_org is None:
         raise MetadataValidationError(
             'publisher must be specified for Researchdata.se export'
@@ -772,6 +797,7 @@ def normalize_ega_dataset_metadata(
         sd_publisher=build_site_sd_publisher(site_name, site_base_url),
         in_language=[{'@type': 'Language', 'identifier': 'en', 'name': 'English'}],
         creators=creators,
+        source_organizations=source_organizations,
         keywords=normalized_keywords,
     )
 

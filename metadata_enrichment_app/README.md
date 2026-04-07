@@ -12,7 +12,7 @@ For a new user, the normal app workflow is:
 
 1. Enter an `EGA Study ID`, fetch study metadata from EGA, and confirm that the loaded study is correct.
 2. Fill in study-level metadata:
-   creators, publisher, and optionally global keywords.
+   creators, publisher, optional source organizations, and optionally global keywords.
 3. Select the datasets to include and add any dataset-specific keywords that are needed.
 4. Click `Generate Export Files`.
 5. Review the preview and download the generated files you need.
@@ -23,6 +23,7 @@ If you already have a saved project JSON, you can also load it directly in the a
 
 -   Fetch a study and its datasets from the EGA public metadata API
 -   Set one or more creators at study level
+-   Set zero or more source organizations at study level
 -   Set a required publisher at study level
 -   Use FEGA Sweden site metadata defaults, with optional override under advanced settings
 -   Add global keywords for all datasets plus additional keywords per dataset
@@ -115,11 +116,12 @@ The app generates a `schema.org` `Dataset` JSON-LD payload for each exported dat
 | `isPartOf.@id` | derived | `study.accession_id` from EGA | converted to `http://identifiers.org/ega.study:{accession_id}` |
 | `isPartOf.name` | EGA source | `study.title` from EGA | copied from the EGA study title |
 | `creator` | app enrichment | one or more creators selected in the app | required for Researchdata.se export; emitted as one or more creators |
+| `sourceOrganization` | app enrichment | optional source organizations selected in the app | emitted when one or more research principals are specified |
 | `keywords` | app enrichment | global keywords plus dataset-specific additional keywords | required for Researchdata.se export; effective keywords are built as `global + dataset-specific`, deduplicated in order |
 
 Notes:
 
--   `publisher`, `creator`, and `keywords` are enrichment fields added in the app, not native EGA metadata fields.
+-   `publisher`, `creator`, `sourceOrganization`, and `keywords` are enrichment fields added in the app, not native EGA metadata fields.
 -   The app stores both global keywords and dataset-specific additional keywords in the saved project snapshot.
 -   Preview and downloads are generated from the latest saved export snapshot, not directly from the current unsaved widget state.
 -   `includedInDataCatalog` and `sdPublisher` are derived from the app's site name and site base URL settings, which default to FEGA Sweden and are only normally changed under advanced settings.

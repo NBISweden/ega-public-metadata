@@ -169,6 +169,7 @@ class MetadataExportCliTests(unittest.TestCase):
             study_id='EGAS50000000906',
             study_context=study_context,
             creator_orgs=['UU'],
+            source_orgs=['LU'],
             publisher_org='LU',
             export_config=ExportConfig(
                 site_name='NBIS Data Portal',

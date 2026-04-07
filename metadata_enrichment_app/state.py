@@ -50,6 +50,7 @@ def clear_study_workflow_state(
     session_state.pop('study_context', None)
     session_state.pop('loaded_study_id', None)
     session_state.pop('creator_orgs', None)
+    session_state.pop('source_orgs', None)
     session_state.pop('publisher_org', None)
     session_state.pop('global_keywords_raw', None)
     session_state.pop('generate_success_message', None)
@@ -70,6 +71,7 @@ def clear_study_workflow_state(
 def build_export_request_signature(
     study_id: str,
     creator_orgs: list[str],
+    source_orgs: list[str],
     publisher_org: str | None,
     site_name: str,
     site_base_url: str,
@@ -81,6 +83,7 @@ def build_export_request_signature(
         {
             'study_id': study_id,
             'creator_orgs': creator_orgs,
+            'source_orgs': source_orgs,
             'publisher_org': publisher_org,
             'site_name': site_name,
             'site_base_url': site_base_url,
@@ -95,6 +98,8 @@ def build_export_request_signature(
 def initialize_form_state_defaults(session_state: SessionStateMapping) -> None:
     if 'creator_orgs' not in session_state:
         session_state['creator_orgs'] = []
+    if 'source_orgs' not in session_state:
+        session_state['source_orgs'] = []
     if 'publisher_org' not in session_state:
         session_state['publisher_org'] = None
     if 'global_keywords_raw' not in session_state:
@@ -136,6 +141,7 @@ def restore_project_to_session_state(
     session_state['study_context'] = study_context
     session_state['loaded_study_id'] = project['study_id']
     session_state['creator_orgs'] = project['creator_orgs']
+    session_state['source_orgs'] = project['source_orgs']
     session_state['publisher_org'] = project['publisher_org']
     session_state['global_keywords_raw'] = ', '.join(project['global_keywords'])
     session_state['site_name'] = project['site_name']
@@ -175,6 +181,7 @@ def build_preview_dataset_from_project(
         study_title=study_context.title,
         study_url=study_context.url,
         creator_orgs=project['creator_orgs'],
+        source_orgs=project['source_orgs'],
         publisher_org=project['publisher_org'],
         keywords=merge_keywords(project['global_keywords'], project_dataset['keywords']),
         site_name=project['site_name'],

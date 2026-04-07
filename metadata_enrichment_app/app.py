@@ -265,6 +265,7 @@ has_custom_site_settings = (
 )
 
 creator_orgs = cast(list[str], st.session_state.get('creator_orgs', []))
+source_orgs = cast(list[str], st.session_state.get('source_orgs', []))
 publisher_org = cast(str | None, st.session_state.get('publisher_org'))
 site_name = cast(str, st.session_state.get('site_name', DEFAULT_SITE_NAME))
 site_base_url = cast(str, st.session_state.get('site_base_url', DEFAULT_SITE_BASE_URL))
@@ -289,6 +290,7 @@ workflow_ready_for_datasets = bool(selected_accessions) and not selected_accessi
 current_signature = build_export_request_signature(
     study_id=cast(str, st.session_state.get('loaded_study_id', '')),
     creator_orgs=creator_orgs,
+    source_orgs=source_orgs,
     publisher_org=publisher_org,
     site_name=site_name.strip() or DEFAULT_SITE_NAME,
     site_base_url=site_base_url.rstrip('/'),
@@ -357,13 +359,22 @@ with details_col:
 
 st.divider()
 st.subheader('Step 2. Fill In Study-Level Metadata')
-st.caption('Creators and publisher are required. Global keywords are optional but can save time.')
+st.caption(
+    'Creators and publisher are required. Source organizations and global keywords are optional.'
+)
 st.multiselect(
     'Creators',
     options=list(ORGANISATIONS.keys()),
     key='creator_orgs',
     format_func=get_organisation_display_name,
     help='Select one or more organisations that created or collected the data.',
+)
+st.multiselect(
+    'Source organizations',
+    options=list(ORGANISATIONS.keys()),
+    key='source_orgs',
+    format_func=get_organisation_display_name,
+    help='Optional research principals emitted as schema.org sourceOrganization.',
 )
 st.selectbox(
     'Publisher',
@@ -462,6 +473,7 @@ workflow_ready_for_datasets = bool(selected_accessions) and not selected_accessi
 current_signature = build_export_request_signature(
     study_id=cast(str, st.session_state.get('loaded_study_id', '')),
     creator_orgs=creator_orgs,
+    source_orgs=source_orgs,
     publisher_org=publisher_org,
     site_name=site_name.strip() or DEFAULT_SITE_NAME,
     site_base_url=site_base_url.rstrip('/'),
@@ -510,6 +522,7 @@ elif generate_clicked:
             study_id=cast(str, st.session_state.get('loaded_study_id', '')),
             study_context=study_context,
             creator_orgs=creator_orgs,
+            source_orgs=source_orgs,
             publisher_org=publisher_org,
             export_config=export_config,
             global_keywords=global_keywords,

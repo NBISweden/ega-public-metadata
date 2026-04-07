@@ -182,6 +182,7 @@ class ResearchDataExportTests(unittest.TestCase):
             study_title='SweGen',
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
             creator_orgs=['UU', 'BTB'],
+            source_orgs=['LU'],
             publisher_org='LU',
             keywords=['genomics', 'reference dataset'],
         )
@@ -191,6 +192,10 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(
             [creator['name'] for creator in dataset['creator']],
             ['Uppsala University', 'The Swedish Childhood Tumor Biobank'],
+        )
+        self.assertEqual(
+            [organisation['name'] for organisation in dataset['sourceOrganization']],
+            ['Lund University'],
         )
         self.assertEqual(dataset['keywords'], ['genomics', 'reference dataset'])
         self.assertEqual(dataset['publisher']['name'], 'Lund University')
@@ -237,6 +242,7 @@ class ResearchDataExportTests(unittest.TestCase):
             study_url='http://identifiers.org/ega.study:EGAS50000000906',
             num_datasets=2,
             creator_orgs=['UU', 'BTB'],
+            source_orgs=['LU'],
             publisher_org='LU',
             keywords=['genomics', 'reference dataset'],
         )
@@ -253,6 +259,10 @@ class ResearchDataExportTests(unittest.TestCase):
         self.assertEqual(
             [creator['name'] for creator in normalized.creators],
             ['Uppsala University', 'The Swedish Childhood Tumor Biobank'],
+        )
+        self.assertEqual(
+            [organisation['name'] for organisation in normalized.source_organizations],
+            ['Lund University'],
         )
         self.assertEqual(normalized.keywords, ['genomics', 'reference dataset'])
         self.assertIn('This dataset is one of 2 datasets', normalized.description)
@@ -572,6 +582,7 @@ class ResearchDataExportTests(unittest.TestCase):
             study_id='EGAS50000000906',
             study_context=study_context,
             creator_orgs=['UU', 'LU'],
+            source_orgs=['LU'],
             publisher_org='BTB',
             export_config=ExportConfig(
                 site_name='NBIS Data Portal',
@@ -591,6 +602,7 @@ class ResearchDataExportTests(unittest.TestCase):
 
         self.assertEqual(restored_project['study_id'], 'EGAS50000000906')
         self.assertEqual(restored_project['creator_orgs'], ['UU', 'LU'])
+        self.assertEqual(restored_project['source_orgs'], ['LU'])
         self.assertEqual(restored_project['publisher_org'], 'BTB')
         self.assertEqual(restored_project['global_keywords'], ['genomics'])
         self.assertEqual(restored_project['site_name'], 'NBIS Data Portal')

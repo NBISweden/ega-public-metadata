@@ -60,6 +60,14 @@ def build_parser() -> argparse.ArgumentParser:
         help='Organisation responsible for publishing the dataset metadata record',
     )
     fetch_parser.add_argument(
+        '--source-organization',
+        choices=ORGANISATIONS.keys(),
+        action='append',
+        dest='source_orgs',
+        default=[],
+        help='Research principal emitted as sourceOrganization; repeat for multiple values',
+    )
+    fetch_parser.add_argument(
         '--global-keyword',
         action='append',
         dest='global_keywords',
@@ -197,6 +205,7 @@ def run_fetch_command(args: argparse.Namespace) -> None:
         study_id=args.study_id,
         study_context=study_context,
         creator_orgs=args.creator,
+        source_orgs=args.source_orgs,
         publisher_org=args.publisher,
         export_config=export_config,
         global_keywords=args.global_keywords,
