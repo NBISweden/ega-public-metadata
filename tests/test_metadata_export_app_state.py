@@ -62,6 +62,7 @@ class MetadataExportAppStateTests(unittest.TestCase):
 
     def test_get_organisation_display_name_returns_human_readable_name(self) -> None:
         self.assertEqual(get_organisation_display_name('UU'), 'Uppsala University')
+        self.assertEqual(get_organisation_display_name('KI'), 'Karolinska Institutet')
         self.assertEqual(get_organisation_display_name('BTB'), 'The Swedish Childhood Tumor Biobank')
 
     def test_build_export_request_signature_changes_when_export_inputs_change(self) -> None:
@@ -350,7 +351,8 @@ class MetadataExportAppStateTests(unittest.TestCase):
     def test_get_publisher_select_index_requires_valid_saved_value(self) -> None:
         self.assertIsNone(get_publisher_select_index(None))
         self.assertIsNone(get_publisher_select_index('FEGA-SE'))
-        self.assertEqual(get_publisher_select_index('LU'), 1)
+        self.assertEqual(get_publisher_select_index('KI'), 0)
+        self.assertEqual(get_publisher_select_index('LU'), 2)
 
 
 if __name__ == '__main__':

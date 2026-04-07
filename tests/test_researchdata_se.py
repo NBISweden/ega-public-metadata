@@ -121,16 +121,16 @@ class ResearchDataExportTests(unittest.TestCase):
 
     def test_parse_args_accepts_repeated_creators(self) -> None:
         args = parse_args([
-            '--creator', 'UU',
+            '--creator', 'KI',
             '--creator', 'LU',
-            '--publisher', 'BTB',
+            '--publisher', 'KI',
             '--keyword', 'genomics',
             'EGAS50000000906',
             'tmp',
         ])
 
-        self.assertEqual(args.creator, ['UU', 'LU'])
-        self.assertEqual(args.publisher, 'BTB')
+        self.assertEqual(args.creator, ['KI', 'LU'])
+        self.assertEqual(args.publisher, 'KI')
 
     def test_parse_args_requires_keyword(self) -> None:
         with self.assertRaises(SystemExit):

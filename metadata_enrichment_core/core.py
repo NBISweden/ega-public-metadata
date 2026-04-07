@@ -30,6 +30,7 @@ DEFAULT_CONDITIONS_OF_ACCESS = (
 
 ORGANISATIONS = {
     'FEGA-SE': {'@type': 'Organization', '@id': None, 'name': 'FEGA Sweden'},
+    'KI': {'@type': 'Organization', '@id': 'https://ror.org/056d84691', 'name': 'Karolinska Institutet'},
     'LiU': {'@type': 'Organization', '@id': 'https://ror.org/05ynxx418', 'name': 'Linköping University'},
     'LU': {'@type': 'Organization', '@id': 'https://ror.org/012a77v79', 'name': 'Lund University'},
     'UU': {'@type': 'Organization', '@id': 'https://ror.org/048a87296', 'name': 'Uppsala University'},

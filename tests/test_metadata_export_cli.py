@@ -47,9 +47,10 @@ class MetadataExportCliTests(unittest.TestCase):
             'fetch',
             'EGAS50000000906',
             'tmp',
-            '--creator', 'UU',
+            '--creator', 'KI',
             '--creator', 'LU',
-            '--publisher', 'BTB',
+            '--publisher', 'KI',
+            '--source-organization', 'KI',
             '--global-keyword', 'genomics',
             '--dataset-keyword', 'EGAD50000001323=population genetics',
             '--include-dataset', 'EGAD50000001323',
@@ -61,8 +62,9 @@ class MetadataExportCliTests(unittest.TestCase):
 
         self.assertEqual(args.command, 'fetch')
         self.assertEqual(args.study_id, 'EGAS50000000906')
-        self.assertEqual(args.creator, ['UU', 'LU'])
-        self.assertEqual(args.publisher, 'BTB')
+        self.assertEqual(args.creator, ['KI', 'LU'])
+        self.assertEqual(args.publisher, 'KI')
+        self.assertEqual(args.source_orgs, ['KI'])
         self.assertEqual(args.global_keywords, ['genomics'])
         self.assertEqual(args.dataset_keywords, ['EGAD50000001323=population genetics'])
         self.assertEqual(args.include_accessions, ['EGAD50000001323'])
