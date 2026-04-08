@@ -28,21 +28,74 @@ DEFAULT_CONDITIONS_OF_ACCESS = (
 )
 
 
-ORGANISATIONS = {
-    'FEGA-SE': {'@type': 'Organization', '@id': None, 'name': 'FEGA Sweden'},
-    'KI': {'@type': 'Organization', '@id': 'https://ror.org/056d84691', 'name': 'Karolinska Institutet'},
-    'LiU': {'@type': 'Organization', '@id': 'https://ror.org/05ynxx418', 'name': 'Linköping University'},
-    'LU': {'@type': 'Organization', '@id': 'https://ror.org/012a77v79', 'name': 'Lund University'},
-    'UU': {'@type': 'Organization', '@id': 'https://ror.org/048a87296', 'name': 'Uppsala University'},
-    'BTB': {'@type': 'Organization', '@id': None, 'name': 'The Swedish Childhood Tumour Biobank'},
-}
-PUBLISHER_ORGANISATIONS = tuple(
-    organisation_key for organisation_key in ORGANISATIONS if organisation_key != 'FEGA-SE'
-)
-SOURCE_ORGANISATIONS = tuple(
-    organisation_key
-    for organisation_key, organisation in ORGANISATIONS.items()
-    if organisation.get('@id') is not None
+ORGANISATIONS_CONFIG_PATH = Path(__file__).with_name('organisations.json')
+
+
+def _load_organisation_registry(
+    path: Path,
+) -> tuple[dict[str, dict[str, str | None]], tuple[str, ...], tuple[str, ...]]:
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(payload, dict):
+        raise RuntimeError(f'Organisation config must contain a JSON object: {path}')
+
+    organisations_raw = payload.get('organisations')
+    if not isinstance(organisations_raw, dict) or not organisations_raw:
+        raise RuntimeError(f'Organisation config must define a non-empty "organisations" object: {path}')
+
+    organisations: dict[str, dict[str, str | None]] = {}
+    publisher_orgs: list[str] = []
+    source_orgs: list[str] = []
+
+    for organisation_key, raw_config in organisations_raw.items():
+        if not isinstance(organisation_key, str) or not organisation_key.strip():
+            raise RuntimeError(f'Organisation config contains an invalid organisation key: {path}')
+        if not isinstance(raw_config, dict):
+            raise RuntimeError(
+                f'Organisation "{organisation_key}" must be configured as an object: {path}'
+            )
+
+        name = raw_config.get('name')
+        ror_id = raw_config.get('ror_id')
+        allowed_as_publisher = raw_config.get('allowed_as_publisher')
+        allowed_as_source_organization = raw_config.get('allowed_as_source_organization')
+
+        if not isinstance(name, str) or not name.strip():
+            raise RuntimeError(
+                f'Organisation "{organisation_key}" must define a non-empty "name": {path}'
+            )
+        if ror_id is not None and (not isinstance(ror_id, str) or not ror_id.strip()):
+            raise RuntimeError(
+                f'Organisation "{organisation_key}" has an invalid "ror_id": {path}'
+            )
+        if not isinstance(allowed_as_publisher, bool):
+            raise RuntimeError(
+                f'Organisation "{organisation_key}" must define boolean "allowed_as_publisher": {path}'
+            )
+        if not isinstance(allowed_as_source_organization, bool):
+            raise RuntimeError(
+                f'Organisation "{organisation_key}" must define boolean '
+                f'"allowed_as_source_organization": {path}'
+            )
+        if allowed_as_source_organization and ror_id is None:
+            raise RuntimeError(
+                f'Organisation "{organisation_key}" cannot be a source organization without a ROR ID: {path}'
+            )
+
+        organisations[organisation_key] = {
+            '@type': 'Organization',
+            '@id': ror_id,
+            'name': name.strip(),
+        }
+        if allowed_as_publisher:
+            publisher_orgs.append(organisation_key)
+        if allowed_as_source_organization:
+            source_orgs.append(organisation_key)
+
+    return organisations, tuple(publisher_orgs), tuple(source_orgs)
+
+
+ORGANISATIONS, PUBLISHER_ORGANISATIONS, SOURCE_ORGANISATIONS = _load_organisation_registry(
+    ORGANISATIONS_CONFIG_PATH
 )
 
 
