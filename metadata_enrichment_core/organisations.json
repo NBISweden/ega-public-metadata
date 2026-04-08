@@ -1,0 +1,40 @@
+{
+  "organisations": {
+    "FEGA-SE": {
+      "name": "FEGA Sweden",
+      "ror_id": null,
+      "allowed_as_publisher": false,
+      "allowed_as_source_organization": false
+    },
+    "KI": {
+      "name": "Karolinska Institutet",
+      "ror_id": "https://ror.org/056d84691",
+      "allowed_as_publisher": true,
+      "allowed_as_source_organization": true
+    },
+    "LiU": {
+      "name": "Linköping University",
+      "ror_id": "https://ror.org/05ynxx418",
+      "allowed_as_publisher": true,
+      "allowed_as_source_organization": true
+    },
+    "LU": {
+      "name": "Lund University",
+      "ror_id": "https://ror.org/012a77v79",
+      "allowed_as_publisher": true,
+      "allowed_as_source_organization": true
+    },
+    "UU": {
+      "name": "Uppsala University",
+      "ror_id": "https://ror.org/048a87296",
+      "allowed_as_publisher": true,
+      "allowed_as_source_organization": true
+    },
+    "BTB": {
+      "name": "The Swedish Childhood Tumour Biobank",
+      "ror_id": null,
+      "allowed_as_publisher": true,
+      "allowed_as_source_organization": false
+    }
+  }
+}
