@@ -59,6 +59,16 @@ From the repository root:
 streamlit run metadata_enrichment_app/app.py
 ```
 
+## Study-Level Metadata Guidance
+
+Fill in the study-level metadata like this:
+
+-   `creator`: one or more organisations that contributed to producing the data
+-   `sourceOrganization`: one or more organisations in whose operations the research was carried out, meaning where the data was collected or created; in Sweden this corresponds to the research principal (`forskningshuvudman`)
+-   `publisher`: the organisation that ensured the data was deposited in FEGA Sweden
+
+These roles can overlap. The same organisation may appear in more than one field when that reflects how the dataset was produced and deposited.
+
 ## CLI
 
 The FEGA Sweden Metadata Enrichment CLI supports two modes:
@@ -70,13 +80,13 @@ Example:
 
 ``` text
 python3 metadata_enrichment_app/cli.py fetch \
-  EGAS50000000906 \
+  EGAS50000000086 \
   tmp/app-cli-export \
+  --creator FEGA-SE \
   --creator UU \
-  --creator LU \
-  --publisher BTB \
-  --global-keyword genomics \
-  --dataset-keyword EGAD50000001324="reference cohort" \
+  --publisher UU \
+  --global-keyword "synthetic data" \
+  --dataset-keyword EGAD50000000119=genomics \
   --site-name "FEGA Sweden" \
   --site-base-url https://fega.nbis.se \
   --project-file tmp/app-cli-export/project.json \
@@ -90,6 +100,10 @@ python3 metadata_enrichment_app/cli.py project \
   tmp/app-cli-export/project.json \
   tmp/app-cli-regenerated
 ```
+
+Organisation values for the app and CLI are loaded from
+`metadata_enrichment_core/organisations.json`. Add or adjust values there if you
+need to extend the available creators, publishers, or source organizations.
 
 ## Validation status
 
@@ -107,7 +121,7 @@ The app generates a `schema.org` `Dataset` JSON-LD payload for each exported dat
 | `@type` | FEGA Sweden-managed | hard-coded in shared export core | always `Dataset` |
 | `identifier` | derived | `dataset.accession_id` from EGA | converted to `http://identifiers.org/ega.dataset:{accession_id}` |
 | `name` | EGA source | `dataset.title` from EGA | trimmed and emitted as dataset title |
-| `publisher` | app enrichment | publisher selected in the app | required for Researchdata.se export; FEGA Sweden is not an allowed value |
+| `publisher` | app enrichment | publisher selected in the app | the organisation that ensured the data was deposited in FEGA Sweden; required for Researchdata.se export; FEGA Sweden is not an allowed value |
 | `includedInDataCatalog` | app-managed site metadata | FEGA Sweden defaults, optionally overridden in advanced settings | emitted as a `DataCatalog` for the configured site |
 | `sdPublisher` | app-managed site metadata | FEGA Sweden defaults, optionally overridden in advanced settings | emitted as the configured site as publisher of the structured metadata |
 | `datePublished` | derived from EGA source | `dataset.released_date` from EGA | parsed from ISO timestamp and normalized to `YYYY-MM-DD` |
@@ -116,8 +130,8 @@ The app generates a `schema.org` `Dataset` JSON-LD payload for each exported dat
 | `conditionsOfAccess` | FEGA Sweden-managed | hard-coded in shared export core | always `http://publications.europa.eu/resource/authority/access-right/RESTRICTED` |
 | `isPartOf.@id` | derived | `study.accession_id` from EGA | converted to `http://identifiers.org/ega.study:{accession_id}` |
 | `isPartOf.name` | EGA source | `study.title` from EGA | copied from the EGA study title |
-| `creator` | app enrichment | one or more creators selected in the app | required for Researchdata.se export; emitted as one or more creators |
-| `sourceOrganization` | app enrichment | optional source organizations selected in the app | emitted when one or more research principals are specified; limited to legal entities |
+| `creator` | app enrichment | one or more creators selected in the app | one or more organisations that contributed to producing the data; required for Researchdata.se export; emitted as one or more creators |
+| `sourceOrganization` | app enrichment | optional source organizations selected in the app | one or more organisations in whose operations the research was carried out, meaning where the data was collected or created; in Sweden this corresponds to the research principal; emitted when specified; limited to legal entities |
 | `keywords` | app enrichment | global keywords plus dataset-specific additional keywords | required for Researchdata.se export; effective keywords are built as `global + dataset-specific`, deduplicated in order |
 
 Notes:
