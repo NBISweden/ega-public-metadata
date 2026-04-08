@@ -2,6 +2,7 @@ import io
 import tempfile
 import unittest
 import zipfile
+import requests
 
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -198,3 +199,25 @@ class MetadataExportCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertTrue((output_dir / 'EGAD50000001323.qmd').exists())
             self.assertEqual(stderr_buffer.getvalue(), '')
+
+    def test_main_fetch_reports_request_exception(self) -> None:
+        stderr_buffer = io.StringIO()
+
+        with patch(
+            'metadata_enrichment_app.cli.EGAClient',
+            side_effect=requests.exceptions.ConnectionError('lookup failed'),
+        ):
+            with redirect_stderr(stderr_buffer):
+                exit_code = main([
+                    'fetch',
+                    'EGAS50000000906',
+                    'tmp',
+                    '--creator', 'UU',
+                    '--publisher', 'LU',
+                ])
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn(
+            'Failed to fetch metadata from the EGA API: lookup failed',
+            stderr_buffer.getvalue(),
+        )
