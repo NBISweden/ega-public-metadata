@@ -8,7 +8,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from metadata_export.researchdata_se import ExportConfig, StudyContext, build_export_project, serialize_export_project
+from metadata_enrichment_core.core import ExportConfig, StudyContext, build_export_project, serialize_export_project
 from metadata_enrichment_app.cli import (
     build_parser,
     main,

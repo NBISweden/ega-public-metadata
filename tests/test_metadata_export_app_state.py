@@ -1,6 +1,6 @@
 import unittest
 
-from metadata_export.researchdata_se import ExportConfig, StudyContext, build_export_project
+from metadata_enrichment_core.core import ExportConfig, StudyContext, build_export_project
 from metadata_enrichment_app.state import (
     build_export_archive_filename,
     build_export_request_signature,

@@ -7,7 +7,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from metadata_export.researchdata_se import (
+from metadata_enrichment_core.core import (
     EGAClient,
     ExportConfig,
     GeneratedFile,
